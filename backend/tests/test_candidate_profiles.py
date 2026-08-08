@@ -13,8 +13,9 @@ PROFILE_DATA = {
         "Cybersécurité, Cloud, DevSecOps, Systèmes et Réseaux"
     ),
     "skills": (
-        "Python, FastAPI, SQLAlchemy 2, PostgreSQL, Alembic et Docker"
-    ),
+    "Python, FastAPI, SQLAlchemy 2, PostgreSQL, Alembic, Docker, "
+    "Réseaux et cybersécurité"
+),
 }
 
 
