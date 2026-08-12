@@ -1,0 +1,290 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+import ImportOfferForm from "@/components/ImportOfferForm";
+import { apiRequest } from "@/lib/api";
+import type { JobOffer, MatchResult } from "@/types";
+
+interface CandidateProfile {
+  id: number;
+  full_name: string;
+  is_active: boolean;
+}
+
+export default function Home() {
+  const [minimumScore, setMinimumScore] = useState(0);
+
+  const profilesQuery = useQuery({
+    queryKey: ["candidate-profiles"],
+    queryFn: () =>
+      apiRequest<CandidateProfile[]>("/candidate-profiles"),
+  });
+
+  const activeProfile = profilesQuery.data
+    ?.filter((profile) => profile.is_active)
+    .sort((first, second) => second.id - first.id)[0];
+
+  const offersQuery = useQuery({
+    queryKey: ["job-offers"],
+    queryFn: () => apiRequest<JobOffer[]>("/job-offers"),
+  });
+
+  const resultsQuery = useQuery({
+    queryKey: [
+      "match-results",
+      activeProfile?.id,
+      minimumScore,
+    ],
+    queryFn: () =>
+      apiRequest<MatchResult[]>(
+        `/matching/profile/${activeProfile!.id}/results?minimum_score=${minimumScore}`,
+      ),
+    enabled: activeProfile !== undefined,
+  });
+
+  const offersById = new Map(
+    (offersQuery.data ?? []).map((offer) => [
+      offer.id,
+      offer,
+    ]),
+  );
+
+  const isLoading =
+    profilesQuery.isLoading ||
+    offersQuery.isLoading ||
+    (activeProfile !== undefined && resultsQuery.isLoading);
+
+  const error =
+    profilesQuery.error ??
+    offersQuery.error ??
+    resultsQuery.error;
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-10">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">
+            ApplyMatch AI
+          </p>
+
+          <h1 className="text-4xl font-bold">
+            Tableau de bord des opportunités
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-slate-400">
+            Consulte les offres analysées et leur compatibilité avec
+            ton profil. Aucune candidature n’est envoyée
+            automatiquement.
+          </p>
+
+          {activeProfile && (
+            <p className="mt-4 text-sm text-cyan-300">
+              Profil actif : {activeProfile.full_name}
+            </p>
+          )}
+        </header>
+
+        {activeProfile && (
+          <ImportOfferForm profileId={activeProfile.id} />
+        )}
+
+        <section className="mb-8 grid gap-4 sm:grid-cols-3">
+          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <p className="text-sm text-slate-400">
+              Offres importées
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {offersQuery.data?.length ?? 0}
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <p className="text-sm text-slate-400">
+              Offres analysées
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {resultsQuery.data?.length ?? 0}
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <p className="text-sm text-slate-400">
+              Validation
+            </p>
+
+            <p className="mt-2 text-lg font-semibold text-emerald-400">
+              Toujours manuelle
+            </p>
+          </article>
+        </section>
+
+        <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">
+              Résultats du matching
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-400">
+              Les offres sont classées du meilleur au moins bon
+              score.
+            </p>
+          </div>
+
+          <label className="flex items-center gap-3 text-sm">
+            Score minimal
+
+            <select
+              value={minimumScore}
+              onChange={(event) =>
+                setMinimumScore(Number(event.target.value))
+              }
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+            >
+              <option value={0}>Tous</option>
+              <option value={50}>50 et plus</option>
+              <option value={70}>70 et plus</option>
+              <option value={85}>85 et plus</option>
+            </select>
+          </label>
+        </section>
+
+        {isLoading && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+            Chargement des données...
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-2xl border border-red-900 bg-red-950/40 p-6 text-red-300">
+            Impossible de charger les données :{" "}
+            {error instanceof Error
+              ? error.message
+              : "erreur inconnue"}
+          </div>
+        )}
+
+        {!isLoading &&
+          !error &&
+          profilesQuery.data &&
+          !activeProfile && (
+            <div className="rounded-2xl border border-amber-900 bg-amber-950/40 p-6 text-amber-300">
+              Aucun profil actif n’a été trouvé.
+            </div>
+          )}
+
+        {!isLoading &&
+          !error &&
+          activeProfile &&
+          resultsQuery.data?.length === 0 && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+              <p className="font-semibold">
+                Aucun résultat trouvé
+              </p>
+
+              <p className="mt-2 text-sm text-slate-400">
+                Aucune offre analysée ne correspond au filtre
+                sélectionné pour {activeProfile.full_name}.
+              </p>
+            </div>
+          )}
+
+        {!isLoading && !error && (
+          <section className="grid gap-5">
+            {resultsQuery.data?.map((result) => {
+              const offer = offersById.get(result.offer_id);
+
+              return (
+                <article
+                  key={result.id}
+                  className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+                >
+                  <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-cyan-400">
+                        {offer?.company ??
+                          "Entreprise inconnue"}
+                      </p>
+
+                      <h2 className="mt-1 text-xl font-bold">
+                        {offer?.title ??
+                          `Offre numéro ${result.offer_id}`}
+                      </h2>
+
+                      <p className="mt-2 text-sm text-slate-400">
+                        {offer?.location ??
+                          "Localisation inconnue"}{" "}
+                        ·{" "}
+                        {offer?.contract_type ??
+                          "Contrat non renseigné"}
+                      </p>
+
+                      <p className="mt-4 font-medium text-slate-200">
+                        {result.recommendation}
+                      </p>
+                    </div>
+
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-cyan-400 text-2xl font-bold">
+                      {result.score}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid gap-5 md:grid-cols-2">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-emerald-400">
+                        Compétences correspondantes
+                      </h3>
+
+                      <div className="flex flex-wrap gap-2">
+                        {result.matched_skills.length > 0 ? (
+                          result.matched_skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-full bg-emerald-950 px-3 py-1 text-xs text-emerald-300"
+                            >
+                              {skill}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            Aucune compétence détectée
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold text-amber-400">
+                        Compétences manquantes
+                      </h3>
+
+                      <div className="flex flex-wrap gap-2">
+                        {result.missing_skills.length > 0 ? (
+                          result.missing_skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-full bg-amber-950 px-3 py-1 text-xs text-amber-300"
+                            >
+                              {skill}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            Aucune compétence manquante
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}
