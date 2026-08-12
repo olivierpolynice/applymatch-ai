@@ -14,20 +14,51 @@ class JobOffer(Base):
     __tablename__ = "job_offers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(200), index=True)
-    company: Mapped[str] = mapped_column(String(150), index=True)
-    location: Mapped[str] = mapped_column(String(150))
-    contract_type: Mapped[str] = mapped_column(String(100))
+
+    title: Mapped[str] = mapped_column(
+        String(200),
+        index=True,
+    )
+    company: Mapped[str] = mapped_column(
+        String(150),
+        index=True,
+    )
+    location: Mapped[str] = mapped_column(
+        String(150),
+    )
+    contract_type: Mapped[str] = mapped_column(
+        String(100),
+    )
     description: Mapped[str] = mapped_column(Text)
-    source: Mapped[str] = mapped_column(String(100))
-    source_url: Mapped[str] = mapped_column(String(1000), unique=True)
-    status: Mapped[str] = mapped_column(String(50), default="new")
+
+    source: Mapped[str] = mapped_column(
+        String(100),
+    )
+    source_url: Mapped[str | None] = mapped_column(
+        String(1000),
+        unique=True,
+        nullable=True,
+    )
+    fingerprint: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="new",
+    )
     published_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now
+        DateTime(timezone=True),
+        default=utc_now,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
     )

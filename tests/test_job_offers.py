@@ -17,7 +17,10 @@ OFFER_DATA = {
 
 
 def create_offer(client: TestClient) -> dict:
-    response = client.post("/job-offers", json=OFFER_DATA)
+    response = client.post(
+        "/job-offers",
+        json=OFFER_DATA,
+    )
 
     assert response.status_code == 201
 
@@ -25,7 +28,10 @@ def create_offer(client: TestClient) -> dict:
 
 
 def test_create_job_offer(client: TestClient) -> None:
-    response = client.post("/job-offers", json=OFFER_DATA)
+    response = client.post(
+        "/job-offers",
+        json=OFFER_DATA,
+    )
 
     assert response.status_code == 201
 
@@ -53,10 +59,15 @@ def test_list_job_offers(client: TestClient) -> None:
     assert data[0]["company"] == "Akuo"
 
 
-def test_filter_job_offers_by_status(client: TestClient) -> None:
+def test_filter_job_offers_by_status(
+    client: TestClient,
+) -> None:
     create_offer(client)
 
-    response = client.get("/job-offers", params={"status": "new"})
+    response = client.get(
+        "/job-offers",
+        params={"status": "new"},
+    )
 
     assert response.status_code == 200
     assert len(response.json()) == 1
@@ -73,13 +84,17 @@ def test_filter_job_offers_by_status(client: TestClient) -> None:
 def test_get_job_offer(client: TestClient) -> None:
     created_offer = create_offer(client)
 
-    response = client.get(f"/job-offers/{created_offer['id']}")
+    response = client.get(
+        f"/job-offers/{created_offer['id']}",
+    )
 
     assert response.status_code == 200
     assert response.json()["title"] == OFFER_DATA["title"]
 
 
-def test_update_job_offer_status(client: TestClient) -> None:
+def test_update_job_offer_status(
+    client: TestClient,
+) -> None:
     created_offer = create_offer(client)
 
     response = client.patch(
@@ -97,11 +112,16 @@ def test_duplicate_source_url_returns_409(
 ) -> None:
     create_offer(client)
 
-    response = client.post("/job-offers", json=OFFER_DATA)
+    response = client.post(
+        "/job-offers",
+        json=OFFER_DATA,
+    )
 
     assert response.status_code == 409
     assert response.json() == {
-        "detail": "A job offer with this source URL already exists"
+        "detail": (
+            "A job offer with this source URL already exists"
+        )
     }
 
 
@@ -122,6 +142,58 @@ def test_invalid_job_offer_returns_422(
     invalid_offer = OFFER_DATA.copy()
     invalid_offer["description"] = "court"
 
-    response = client.post("/job-offers", json=invalid_offer)
+    response = client.post(
+        "/job-offers",
+        json=invalid_offer,
+    )
 
     assert response.status_code == 422
+
+
+def test_create_job_offer_without_source_url(
+    client: TestClient,
+) -> None:
+    offer_without_url = OFFER_DATA.copy()
+    offer_without_url["source_url"] = None
+
+    response = client.post(
+        "/job-offers",
+        json=offer_without_url,
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["source_url"] is None
+    assert data["title"] == OFFER_DATA["title"]
+    assert data["company"] == "Akuo"
+
+
+def test_duplicate_offer_without_url_returns_409(
+    client: TestClient,
+) -> None:
+    first_offer = OFFER_DATA.copy()
+    first_offer["source_url"] = None
+
+    second_offer = first_offer.copy()
+    second_offer["title"] = (
+        "  ALTERNANCE Network & Security Administrator  "
+    )
+    second_offer["company"] = " AKUO "
+    second_offer["location"] = "  PARIS "
+
+    first_response = client.post(
+        "/job-offers",
+        json=first_offer,
+    )
+    second_response = client.post(
+        "/job-offers",
+        json=second_offer,
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+    assert second_response.json() == {
+        "detail": "This job offer already exists"
+    }

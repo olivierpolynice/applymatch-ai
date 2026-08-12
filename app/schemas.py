@@ -21,15 +21,49 @@ class CandidateProfileCreate(BaseModel):
 
 
 class CandidateProfileUpdate(BaseModel):
-    full_name: str | None = Field(default=None, min_length=1, max_length=150)
-    education_level: str | None = Field(default=None, min_length=1, max_length=100)
-    program: str | None = Field(default=None, min_length=1, max_length=200)
-    target_contract: str | None = Field(default=None, min_length=1, max_length=100)
-    availability: str | None = Field(default=None, min_length=1, max_length=100)
-    work_schedule: str | None = Field(default=None, min_length=1, max_length=100)
-    location: str | None = Field(default=None, min_length=1, max_length=150)
-    target_roles: str | None = Field(default=None, min_length=1)
-    skills: str | None = Field(default=None, min_length=1)
+    full_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=150,
+    )
+    education_level: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    program: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+    target_contract: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    availability: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    work_schedule: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
+    location: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=150,
+    )
+    target_roles: str | None = Field(
+        default=None,
+        min_length=1,
+    )
+    skills: str | None = Field(
+        default=None,
+        min_length=1,
+    )
 
 
 class CandidateProfileRead(CandidateProfileCreate, ORMModel):
@@ -39,7 +73,13 @@ class CandidateProfileRead(CandidateProfileCreate, ORMModel):
     updated_at: datetime
 
 
-OfferStatus = Literal["new", "saved", "applied", "rejected", "archived"]
+OfferStatus = Literal[
+    "new",
+    "saved",
+    "applied",
+    "rejected",
+    "archived",
+]
 
 
 class JobOfferCreate(BaseModel):
@@ -49,7 +89,7 @@ class JobOfferCreate(BaseModel):
     contract_type: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=20)
     source: str = Field(min_length=1, max_length=100)
-    source_url: HttpUrl
+    source_url: HttpUrl | None = None
     published_at: datetime | None = None
 
 
@@ -65,7 +105,7 @@ class JobOfferRead(ORMModel):
     contract_type: str
     description: str
     source: str
-    source_url: str
+    source_url: str | None
     status: str
     published_at: datetime | None
     created_at: datetime

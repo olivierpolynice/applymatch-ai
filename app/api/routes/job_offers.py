@@ -1,3 +1,7 @@
+import hashlib
+import re
+import unicodedata
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +20,30 @@ router = APIRouter(
     prefix="/job-offers",
     tags=["Job offers"],
 )
+
+
+def normalize_fingerprint_value(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value)
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    return normalized.strip().casefold()
+
+
+def build_offer_fingerprint(
+    title: str,
+    company: str,
+    location: str,
+) -> str:
+    normalized_values = [
+        normalize_fingerprint_value(title),
+        normalize_fingerprint_value(company),
+        normalize_fingerprint_value(location),
+    ]
+    fingerprint_source = "|".join(normalized_values)
+
+    return hashlib.sha256(
+        fingerprint_source.encode("utf-8"),
+    ).hexdigest()
 
 
 def get_offer_or_404(
@@ -44,10 +72,46 @@ def create_job_offer(
 ) -> JobOffer:
     offer_data = data.model_dump()
 
-    if offer_data.get("source_url") is not None:
-        offer_data["source_url"] = str(
-            offer_data["source_url"],
+    source_url = offer_data.get("source_url")
+
+    if source_url is not None:
+        source_url = str(source_url)
+        offer_data["source_url"] = source_url
+
+        existing_url = db.scalar(
+            select(JobOffer).where(
+                JobOffer.source_url == source_url,
+            )
         )
+
+        if existing_url is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "A job offer with this source URL "
+                    "already exists"
+                ),
+            )
+
+    fingerprint = build_offer_fingerprint(
+        title=offer_data["title"],
+        company=offer_data["company"],
+        location=offer_data["location"],
+    )
+
+    existing_fingerprint = db.scalar(
+        select(JobOffer).where(
+            JobOffer.fingerprint == fingerprint,
+        )
+    )
+
+    if existing_fingerprint is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This job offer already exists",
+        )
+
+    offer_data["fingerprint"] = fingerprint
 
     offer = JobOffer(**offer_data)
     db.add(offer)
@@ -59,7 +123,7 @@ def create_job_offer(
 
         raise HTTPException(
             status_code=409,
-            detail="A job offer with this source URL already exists",
+            detail="This job offer already exists",
         ) from error
 
     db.refresh(offer)

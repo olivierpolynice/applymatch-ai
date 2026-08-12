@@ -36,3 +36,9 @@ temp/
 uploads/
 data/
 *.pdf
+# Local databases
+*.db
+
+# Azurite local storage
+__azurite_db_*__.json
+__blobstorage__/
