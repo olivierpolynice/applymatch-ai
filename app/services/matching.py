@@ -575,6 +575,110 @@ def calculate_confidence(
     return "faible"
 
 
+def format_skills(skills: list[str]) -> str:
+    return ", ".join(skills)
+
+
+def build_recommendations(
+    *,
+    score: int,
+    matched_skills: list[str],
+    skills_to_strengthen: list[str],
+    missing_skills: list[str],
+    role_match: bool,
+    contract_match: bool,
+    location_match: bool,
+    education_match: bool,
+) -> tuple[str, str, list[str]]:
+    if score >= 70:
+        decision = "recommended"
+        application_priority = "high"
+        actions = [
+            (
+                "Candidature recommandée : adapter le CV "
+                "et préparer une candidature pour cette offre."
+            )
+        ]
+    elif score >= 50:
+        decision = "consider"
+        application_priority = "medium"
+        actions = [
+            (
+                "Candidature possible après adaptation du CV "
+                "et vérification des principaux écarts."
+            )
+        ]
+    else:
+        decision = "skip"
+        application_priority = "low"
+        actions = [
+            (
+                "Ne pas prioriser cette offre tant que les "
+                "principaux critères ne correspondent pas."
+            )
+        ]
+
+    if matched_skills:
+        actions.append(
+            (
+                "Mettre en avant dans le CV : "
+                f"{format_skills(matched_skills)}."
+            )
+        )
+
+    if skills_to_strengthen:
+        actions.append(
+            (
+                "Présenter comme notions et préparer un exemple "
+                "concret pour : "
+                f"{format_skills(skills_to_strengthen)}."
+            )
+        )
+
+    if missing_skills:
+        actions.append(
+            (
+                "Réviser avant un éventuel entretien : "
+                f"{format_skills(missing_skills[:3])}."
+            )
+        )
+
+    if not role_match:
+        actions.append(
+            (
+                "Vérifier que les missions correspondent bien "
+                "aux métiers recherchés."
+            )
+        )
+
+    if not contract_match:
+        actions.append(
+            "Vérifier le type de contrat avant de postuler."
+        )
+
+    if not location_match:
+        actions.append(
+            (
+                "Vérifier la localisation, le télétravail et "
+                "les possibilités de déplacement."
+            )
+        )
+
+    if not education_match:
+        actions.append(
+            (
+                "Vérifier le niveau d’études demandé avant "
+                "d’envoyer la candidature."
+            )
+        )
+
+    return (
+        decision,
+        application_priority,
+        actions,
+    )
+
+
 def calculate(
     profile: CandidateProfile,
     offer: JobOffer,
@@ -655,10 +759,28 @@ def calculate(
         ),
     )
 
+    (
+        decision,
+        application_priority,
+        actions,
+    ) = build_recommendations(
+        score=score,
+        matched_skills=matched_skills,
+        skills_to_strengthen=skills_to_strengthen,
+        missing_skills=missing_skills,
+        role_match=role_match,
+        contract_match=contract_match,
+        location_match=location_match,
+        education_match=education_match,
+    )
+
     return {
         "score": score,
         "recommendation": recommendation,
         "confidence": confidence,
+        "decision": decision,
+        "application_priority": application_priority,
+        "actions": actions,
         "matched_skills": matched_skills,
         "skills_to_strengthen": (
             skills_to_strengthen

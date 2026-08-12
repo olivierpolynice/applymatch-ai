@@ -14,34 +14,13 @@ class ORMModel(BaseModel):
 
 
 class CandidateProfileCreate(BaseModel):
-    full_name: str = Field(
-        min_length=1,
-        max_length=150,
-    )
-    education_level: str = Field(
-        min_length=1,
-        max_length=100,
-    )
-    program: str = Field(
-        min_length=1,
-        max_length=200,
-    )
-    target_contract: str = Field(
-        min_length=1,
-        max_length=100,
-    )
-    availability: str = Field(
-        min_length=1,
-        max_length=100,
-    )
-    work_schedule: str = Field(
-        min_length=1,
-        max_length=100,
-    )
-    location: str = Field(
-        min_length=1,
-        max_length=150,
-    )
+    full_name: str = Field(min_length=1, max_length=150)
+    education_level: str = Field(min_length=1, max_length=100)
+    program: str = Field(min_length=1, max_length=200)
+    target_contract: str = Field(min_length=1, max_length=100)
+    availability: str = Field(min_length=1, max_length=100)
+    work_schedule: str = Field(min_length=1, max_length=100)
+    location: str = Field(min_length=1, max_length=150)
     target_roles: str = Field(min_length=1)
     skills: str = Field(min_length=1)
 
@@ -92,10 +71,7 @@ class CandidateProfileUpdate(BaseModel):
     )
 
 
-class CandidateProfileRead(
-    CandidateProfileCreate,
-    ORMModel,
-):
+class CandidateProfileRead(CandidateProfileCreate, ORMModel):
     id: int
     is_active: bool
     created_at: datetime
@@ -112,27 +88,12 @@ OfferStatus = Literal[
 
 
 class JobOfferCreate(BaseModel):
-    title: str = Field(
-        min_length=2,
-        max_length=200,
-    )
-    company: str = Field(
-        min_length=1,
-        max_length=150,
-    )
-    location: str = Field(
-        min_length=1,
-        max_length=150,
-    )
-    contract_type: str = Field(
-        min_length=1,
-        max_length=100,
-    )
+    title: str = Field(min_length=2, max_length=200)
+    company: str = Field(min_length=1, max_length=150)
+    location: str = Field(min_length=1, max_length=150)
+    contract_type: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=20)
-    source: str = Field(
-        min_length=1,
-        max_length=100,
-    )
+    source: str = Field(min_length=1, max_length=100)
     source_url: HttpUrl | None = None
     published_at: datetime | None = None
 
@@ -162,7 +123,6 @@ class MatchDetails(BaseModel):
     contract_score: int
     location_score: int
     education_score: int
-
     role_match: bool
     contract_match: bool
     location_match: bool
@@ -176,11 +136,12 @@ class MatchResultRead(ORMModel):
     score: int
     recommendation: str
     confidence: str
-
+    decision: str
+    application_priority: str
+    actions: list[str]
     matched_skills: list[str]
     skills_to_strengthen: list[str]
     missing_skills: list[str]
-
     details: MatchDetails
     created_at: datetime
     updated_at: datetime
@@ -191,3 +152,41 @@ class CollectorRunRead(BaseModel):
     added: int
     duplicates: int
     errors: int
+
+
+ValidationQueueStatus = Literal[
+    "pending",
+    "approved",
+    "rejected",
+    "archived",
+]
+
+ValidationDecision = Literal[
+    "approved",
+    "rejected",
+]
+
+
+class ValidationQueueCreate(BaseModel):
+    match_result_id: int = Field(gt=0)
+
+
+class ValidationQueueDecisionUpdate(BaseModel):
+    decision: ValidationDecision
+    reviewer_comment: str | None = Field(
+        default=None,
+        max_length=2000,
+    )
+
+
+class ValidationQueueRead(ORMModel):
+    id: int
+    profile_id: int
+    offer_id: int
+    match_result_id: int
+    status: ValidationQueueStatus
+    priority: str
+    reviewer_comment: str | None
+    decided_at: datetime | None
+    created_at: datetime
+    updated_at: datetime

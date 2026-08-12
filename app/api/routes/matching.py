@@ -37,6 +37,11 @@ def serialize_match(
         "score": result.score,
         "recommendation": result.recommendation,
         "confidence": result.confidence,
+        "decision": result.decision,
+        "application_priority": (
+            result.application_priority
+        ),
+        "actions": result.actions,
         "matched_skills": result.matched_skills,
         "skills_to_strengthen": (
             result.skills_to_strengthen

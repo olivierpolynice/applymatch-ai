@@ -28,6 +28,7 @@ class MatchResult(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     profile_id: Mapped[int] = mapped_column(
         ForeignKey(
             "candidate_profiles.id",
@@ -50,6 +51,19 @@ class MatchResult(Base):
     confidence: Mapped[str] = mapped_column(
         String(20),
         default="faible",
+    )
+
+    decision: Mapped[str] = mapped_column(
+        String(30),
+        default="consider",
+    )
+    application_priority: Mapped[str] = mapped_column(
+        String(20),
+        default="medium",
+    )
+    actions: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
     )
 
     matched_skills: Mapped[list[str]] = mapped_column(JSON)

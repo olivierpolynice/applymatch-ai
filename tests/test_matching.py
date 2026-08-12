@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import MatchResult
+from app.services.matching import build_recommendations
 from tests.test_candidate_profiles import PROFILE_DATA
 from tests.test_job_offers import OFFER_DATA
 
@@ -524,3 +525,101 @@ def test_list_match_results_rejects_invalid_requests(
             "minimum_score must be between 0 and 100"
         )
     }
+def test_recommendations_for_high_score() -> None:
+    decision, priority, actions = build_recommendations(
+        score=85,
+        matched_skills=[
+            "cloud",
+            "python",
+            "security",
+        ],
+        skills_to_strengthen=[
+            "kubernetes",
+            "terraform",
+        ],
+        missing_skills=[],
+        role_match=True,
+        contract_match=True,
+        location_match=True,
+        education_match=True,
+    )
+
+    assert decision == "recommended"
+    assert priority == "high"
+    assert any(
+        "Candidature recommandée" in action
+        for action in actions
+    )
+    assert any(
+        "cloud, python, security" in action
+        for action in actions
+    )
+    assert any(
+        "kubernetes, terraform" in action
+        for action in actions
+    )
+
+
+def test_recommendations_for_medium_score() -> None:
+    decision, priority, actions = build_recommendations(
+        score=60,
+        matched_skills=["python"],
+        skills_to_strengthen=[],
+        missing_skills=[
+            "azure",
+            "kubernetes",
+            "terraform",
+            "ansible",
+        ],
+        role_match=True,
+        contract_match=True,
+        location_match=True,
+        education_match=True,
+    )
+
+    assert decision == "consider"
+    assert priority == "medium"
+    assert any(
+        "Candidature possible" in action
+        for action in actions
+    )
+    assert any(
+        "azure, kubernetes, terraform" in action
+        for action in actions
+    )
+    assert all(
+        "ansible" not in action
+        for action in actions
+    )
+
+
+def test_recommendations_for_low_score() -> None:
+    decision, priority, actions = build_recommendations(
+        score=30,
+        matched_skills=[],
+        skills_to_strengthen=[],
+        missing_skills=[],
+        role_match=False,
+        contract_match=False,
+        location_match=False,
+        education_match=False,
+    )
+
+    assert decision == "skip"
+    assert priority == "low"
+    assert any(
+        "Ne pas prioriser" in action
+        for action in actions
+    )
+    assert any(
+        "type de contrat" in action
+        for action in actions
+    )
+    assert any(
+        "localisation" in action
+        for action in actions
+    )
+    assert any(
+        "niveau d’études" in action
+        for action in actions
+    )

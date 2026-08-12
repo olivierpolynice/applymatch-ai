@@ -6,6 +6,7 @@ from app.api.routes import (
     health,
     job_offers,
     matching,
+    validation_queue,
 )
 
 
@@ -16,3 +17,4 @@ api_router.include_router(candidate_profiles.router)
 api_router.include_router(job_offers.router)
 api_router.include_router(matching.router)
 api_router.include_router(collectors.router)
+api_router.include_router(validation_queue.router)
