@@ -3,8 +3,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import get_settings
 from app.db.base import Base
+from app.db.session import DATABASE_URL
 from app.models import (  # noqa: F401
     CandidateProfile,
     JobOffer,
@@ -12,31 +12,31 @@ from app.models import (  # noqa: F401
 )
 
 
-# Configuration Alembic provenant du fichier alembic.ini.
 config = context.config
 
-# Utilise l’adresse PostgreSQL définie dans la configuration de l’application.
-settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    DATABASE_URL,
+)
 
-# Configuration des logs Alembic.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Métadonnées utilisées pour générer automatiquement les migrations.
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Exécute les migrations sans connexion directe à la base."""
     url = config.get_main_option("sqlalchemy.url")
 
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        dialect_opts={
+            "paramstyle": "named",
+        },
         compare_type=True,
+        render_as_batch=url.startswith("sqlite"),
     )
 
     with context.begin_transaction():
@@ -44,11 +44,19 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Exécute les migrations avec une connexion à la base."""
+    configuration = config.get_section(
+        config.config_ini_section,
+    ) or {}
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=(
+            {"check_same_thread": False}
+            if DATABASE_URL.startswith("sqlite")
+            else {}
+        ),
     )
 
     with connectable.connect() as connection:
@@ -56,6 +64,9 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            render_as_batch=(
+                connection.dialect.name == "sqlite"
+            ),
         )
 
         with context.begin_transaction():

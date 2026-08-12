@@ -9,13 +9,34 @@ class ORMModel(BaseModel):
 
 
 class CandidateProfileCreate(BaseModel):
-    full_name: str = Field(min_length=1, max_length=150)
-    education_level: str = Field(min_length=1, max_length=100)
-    program: str = Field(min_length=1, max_length=200)
-    target_contract: str = Field(min_length=1, max_length=100)
-    availability: str = Field(min_length=1, max_length=100)
-    work_schedule: str = Field(min_length=1, max_length=100)
-    location: str = Field(min_length=1, max_length=150)
+    full_name: str = Field(
+        min_length=1,
+        max_length=150,
+    )
+    education_level: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    program: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+    target_contract: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    availability: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    work_schedule: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+    location: str = Field(
+        min_length=1,
+        max_length=150,
+    )
     target_roles: str = Field(min_length=1)
     skills: str = Field(min_length=1)
 
@@ -66,7 +87,10 @@ class CandidateProfileUpdate(BaseModel):
     )
 
 
-class CandidateProfileRead(CandidateProfileCreate, ORMModel):
+class CandidateProfileRead(
+    CandidateProfileCreate,
+    ORMModel,
+):
     id: int
     is_active: bool
     created_at: datetime
@@ -83,12 +107,27 @@ OfferStatus = Literal[
 
 
 class JobOfferCreate(BaseModel):
-    title: str = Field(min_length=2, max_length=200)
-    company: str = Field(min_length=1, max_length=150)
-    location: str = Field(min_length=1, max_length=150)
-    contract_type: str = Field(min_length=1, max_length=100)
+    title: str = Field(
+        min_length=2,
+        max_length=200,
+    )
+    company: str = Field(
+        min_length=1,
+        max_length=150,
+    )
+    location: str = Field(
+        min_length=1,
+        max_length=150,
+    )
+    contract_type: str = Field(
+        min_length=1,
+        max_length=100,
+    )
     description: str = Field(min_length=20)
-    source: str = Field(min_length=1, max_length=100)
+    source: str = Field(
+        min_length=1,
+        max_length=100,
+    )
     source_url: HttpUrl | None = None
     published_at: datetime | None = None
 
@@ -133,3 +172,10 @@ class MatchResultRead(ORMModel):
     details: MatchDetails
     created_at: datetime
     updated_at: datetime
+
+
+class CollectorRunRead(BaseModel):
+    found: int
+    added: int
+    duplicates: int
+    errors: int
