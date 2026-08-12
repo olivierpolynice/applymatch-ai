@@ -1,13 +1,23 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.routes.candidate_profiles import get_profile_or_404
-from app.api.routes.job_offers import get_offer_or_404
+from app.api.routes.candidate_profiles import (
+    get_profile_or_404,
+)
+from app.api.routes.job_offers import (
+    get_offer_or_404,
+)
 from app.db.session import get_db
 from app.models import MatchResult
+from app.schemas import MatchResultRead
 from app.services.matching import calculate
 
 
@@ -17,23 +27,43 @@ router = APIRouter(
 )
 
 
-def serialize_match(result: MatchResult) -> dict[str, Any]:
+def serialize_match(
+    result: MatchResult,
+) -> dict[str, Any]:
     return {
         "id": result.id,
         "profile_id": result.profile_id,
         "offer_id": result.offer_id,
         "score": result.score,
         "recommendation": result.recommendation,
+        "confidence": result.confidence,
         "matched_skills": result.matched_skills,
+        "skills_to_strengthen": (
+            result.skills_to_strengthen
+        ),
         "missing_skills": result.missing_skills,
         "details": {
             "skills_score": result.skills_score,
             "role_score": result.role_score,
-            "contract_score": result.contract_score,
-            "location_score": result.location_score,
+            "contract_score": (
+                result.contract_score
+            ),
+            "location_score": (
+                result.location_score
+            ),
+            "education_score": (
+                result.education_score
+            ),
             "role_match": result.role_match,
-            "contract_match": result.contract_match,
-            "location_match": result.location_match,
+            "contract_match": (
+                result.contract_match
+            ),
+            "location_match": (
+                result.location_match
+            ),
+            "education_match": (
+                result.education_match
+            ),
         },
         "created_at": result.created_at,
         "updated_at": result.updated_at,
@@ -42,16 +72,26 @@ def serialize_match(result: MatchResult) -> dict[str, Any]:
 
 @router.post(
     "/profile/{profile_id}/offer/{offer_id}",
+    response_model=MatchResultRead,
 )
 def match_profile_offer(
     profile_id: int,
     offer_id: int,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    profile = get_profile_or_404(profile_id, db)
-    offer = get_offer_or_404(offer_id, db)
+    profile = get_profile_or_404(
+        profile_id,
+        db,
+    )
+    offer = get_offer_or_404(
+        offer_id,
+        db,
+    )
 
-    values = calculate(profile, offer)
+    values = calculate(
+        profile,
+        offer,
+    )
 
     statement = select(MatchResult).where(
         MatchResult.profile_id == profile_id,
@@ -69,7 +109,11 @@ def match_profile_offer(
         db.add(result)
     else:
         for key, value in values.items():
-            setattr(result, key, value)
+            setattr(
+                result,
+                key,
+                value,
+            )
 
     db.commit()
     db.refresh(result)
@@ -79,18 +123,26 @@ def match_profile_offer(
 
 @router.get(
     "/profile/{profile_id}/results",
+    response_model=list[MatchResultRead],
 )
 def list_match_results(
     profile_id: int,
     minimum_score: int = 0,
     db: Session = Depends(get_db),
 ) -> list[dict[str, Any]]:
-    get_profile_or_404(profile_id, db)
+    get_profile_or_404(
+        profile_id,
+        db,
+    )
 
     if not 0 <= minimum_score <= 100:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="minimum_score must be between 0 and 100",
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail=(
+                "minimum_score must be between 0 and 100"
+            ),
         )
 
     statement = (
@@ -99,9 +151,14 @@ def list_match_results(
             MatchResult.profile_id == profile_id,
             MatchResult.score >= minimum_score,
         )
-        .order_by(MatchResult.score.desc())
+        .order_by(
+            MatchResult.score.desc(),
+        )
     )
 
     results = db.scalars(statement)
 
-    return [serialize_match(result) for result in results]
+    return [
+        serialize_match(result)
+        for result in results
+    ]

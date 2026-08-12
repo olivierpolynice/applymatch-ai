@@ -1,7 +1,12 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+)
 
 
 class ORMModel(BaseModel):
@@ -156,9 +161,12 @@ class MatchDetails(BaseModel):
     role_score: int
     contract_score: int
     location_score: int
+    education_score: int
+
     role_match: bool
     contract_match: bool
     location_match: bool
+    education_match: bool
 
 
 class MatchResultRead(ORMModel):
@@ -167,8 +175,12 @@ class MatchResultRead(ORMModel):
     offer_id: int
     score: int
     recommendation: str
+    confidence: str
+
     matched_skills: list[str]
+    skills_to_strengthen: list[str]
     missing_skills: list[str]
+
     details: MatchDetails
     created_at: datetime
     updated_at: datetime
