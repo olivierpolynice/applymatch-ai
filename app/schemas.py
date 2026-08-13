@@ -1,12 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    HttpUrl,
-)
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class ORMModel(BaseModel):
@@ -23,52 +18,33 @@ class CandidateProfileCreate(BaseModel):
     location: str = Field(min_length=1, max_length=150)
     target_roles: str = Field(min_length=1)
     skills: str = Field(min_length=1)
+    professional_summary: str | None = Field(
+        default=None,
+        max_length=3000,
+    )
+    experience_highlights: str | None = Field(
+        default=None,
+        max_length=5000,
+    )
+    project_highlights: str | None = Field(
+        default=None,
+        max_length=5000,
+    )
 
 
 class CandidateProfileUpdate(BaseModel):
-    full_name: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=150,
-    )
-    education_level: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-    )
-    program: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=200,
-    )
-    target_contract: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-    )
-    availability: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-    )
-    work_schedule: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-    )
-    location: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=150,
-    )
-    target_roles: str | None = Field(
-        default=None,
-        min_length=1,
-    )
-    skills: str | None = Field(
-        default=None,
-        min_length=1,
-    )
+    full_name: str | None = Field(default=None, min_length=1, max_length=150)
+    education_level: str | None = Field(default=None, min_length=1, max_length=100)
+    program: str | None = Field(default=None, min_length=1, max_length=200)
+    target_contract: str | None = Field(default=None, min_length=1, max_length=100)
+    availability: str | None = Field(default=None, min_length=1, max_length=100)
+    work_schedule: str | None = Field(default=None, min_length=1, max_length=100)
+    location: str | None = Field(default=None, min_length=1, max_length=150)
+    target_roles: str | None = Field(default=None, min_length=1)
+    skills: str | None = Field(default=None, min_length=1)
+    professional_summary: str | None = Field(default=None, max_length=3000)
+    experience_highlights: str | None = Field(default=None, max_length=5000)
+    project_highlights: str | None = Field(default=None, max_length=5000)
 
 
 class CandidateProfileRead(CandidateProfileCreate, ORMModel):
@@ -78,13 +54,7 @@ class CandidateProfileRead(CandidateProfileCreate, ORMModel):
     updated_at: datetime
 
 
-OfferStatus = Literal[
-    "new",
-    "saved",
-    "applied",
-    "rejected",
-    "archived",
-]
+OfferStatus = Literal["new", "saved", "applied", "rejected", "archived"]
 
 
 class JobOfferCreate(BaseModel):
@@ -154,17 +124,8 @@ class CollectorRunRead(BaseModel):
     errors: int
 
 
-ValidationQueueStatus = Literal[
-    "pending",
-    "approved",
-    "rejected",
-    "archived",
-]
-
-ValidationDecision = Literal[
-    "approved",
-    "rejected",
-]
+ValidationQueueStatus = Literal["pending", "approved", "rejected", "archived"]
+ValidationDecision = Literal["approved", "rejected"]
 
 
 class ValidationQueueCreate(BaseModel):
@@ -173,10 +134,7 @@ class ValidationQueueCreate(BaseModel):
 
 class ValidationQueueDecisionUpdate(BaseModel):
     decision: ValidationDecision
-    reviewer_comment: str | None = Field(
-        default=None,
-        max_length=2000,
-    )
+    reviewer_comment: str | None = Field(default=None, max_length=2000)
 
 
 class ValidationQueueRead(ORMModel):
@@ -188,5 +146,34 @@ class ValidationQueueRead(ORMModel):
     priority: str
     reviewer_comment: str | None
     decided_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+ApplicationDraftStatus = Literal["draft", "reviewed", "archived"]
+
+
+class ApplicationDraftCreate(BaseModel):
+    validation_queue_item_id: int = Field(gt=0)
+
+
+class ApplicationDraftUpdate(BaseModel):
+    cover_letter: str | None = Field(default=None, min_length=50, max_length=10000)
+    short_message: str | None = Field(default=None, min_length=20, max_length=2000)
+    cv_adaptation_tips: str | None = Field(default=None, min_length=20, max_length=5000)
+    status: ApplicationDraftStatus | None = None
+
+
+class ApplicationDraftRead(ORMModel):
+    id: int
+    validation_queue_item_id: int
+    profile_id: int
+    offer_id: int
+    status: ApplicationDraftStatus
+    version: int
+    cover_letter: str
+    short_message: str
+    cv_adaptation_tips: str
+    generated_at: datetime
     created_at: datetime
     updated_at: datetime
