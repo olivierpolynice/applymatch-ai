@@ -98,7 +98,8 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "validation_queue_item_id",
             name=(
-                "uq_application_drafts_validation_queue_item"
+                "uq_application_drafts_"
+                "validation_queue_item"
             ),
         ),
     )
@@ -145,4 +146,5 @@ def downgrade() -> None:
         ),
         table_name="application_drafts",
     )
+
     op.drop_table("application_drafts")

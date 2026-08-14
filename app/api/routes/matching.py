@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import (
@@ -19,6 +20,14 @@ from app.db.session import get_db
 from app.models import MatchResult
 from app.schemas import MatchResultRead
 from app.services.matching import calculate
+from app.services.notifications import (
+    create_notification_once,
+)
+
+
+logger = logging.getLogger(__name__)
+
+HIGH_SCORE_THRESHOLD = 70
 
 
 router = APIRouter(
@@ -75,6 +84,45 @@ def serialize_match(
     }
 
 
+def create_high_score_notification(
+    db: Session,
+    *,
+    result: MatchResult,
+    offer_title: str,
+    company: str,
+) -> None:
+    if result.score < HIGH_SCORE_THRESHOLD:
+        return
+
+    try:
+        create_notification_once(
+            db,
+            notification_type="high_score",
+            level="success",
+            title=(
+                f"Offre compatible : {offer_title}"
+            )[:200],
+            message=(
+                f"{company} · Score de compatibilité "
+                f"{result.score}/100. Une validation "
+                "manuelle est recommandée."
+            ),
+            target_url=(
+                f"#match-{result.id}"
+            ),
+        )
+    except Exception:
+        db.rollback()
+
+        logger.exception(
+            (
+                "Unable to create high-score "
+                "notification for match %s."
+            ),
+            result.id,
+        )
+
+
 @router.post(
     "/profile/{profile_id}/offer/{offer_id}",
     response_model=MatchResultRead,
@@ -123,6 +171,13 @@ def match_profile_offer(
     db.commit()
     db.refresh(result)
 
+    create_high_score_notification(
+        db,
+        result=result,
+        offer_title=offer.title,
+        company=offer.company,
+    )
+
     return serialize_match(result)
 
 
@@ -146,7 +201,8 @@ def list_match_results(
                 status.HTTP_422_UNPROCESSABLE_CONTENT
             ),
             detail=(
-                "minimum_score must be between 0 and 100"
+                "minimum_score must be "
+                "between 0 and 100"
             ),
         )
 

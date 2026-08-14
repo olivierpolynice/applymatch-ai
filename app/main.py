@@ -6,6 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
+from app.services.collector_scheduler import (
+    start_collector_scheduler,
+    stop_collector_scheduler,
+)
 from app.services.profile_loader import sync_profile
 
 
@@ -16,7 +20,14 @@ async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         sync_profile(db)
 
-    yield
+    scheduler_task = start_collector_scheduler()
+
+    try:
+        yield
+    finally:
+        await stop_collector_scheduler(
+            scheduler_task,
+        )
 
 
 app = FastAPI(

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -5,9 +6,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
+    JobOffer,
     MatchResult,
     ValidationQueueItem,
 )
+from app.services.notifications import (
+    create_notification_once,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationQueueError(RuntimeError):
@@ -62,6 +70,60 @@ def get_match_result_or_error(
     return match_result
 
 
+def create_validation_notification(
+    db: Session,
+    *,
+    item: ValidationQueueItem,
+) -> None:
+    offer = db.get(
+        JobOffer,
+        item.offer_id,
+    )
+
+    offer_title = (
+        offer.title
+        if offer is not None
+        else f"Offre numéro {item.offer_id}"
+    )
+
+    company = (
+        offer.company
+        if offer is not None
+        else "Entreprise inconnue"
+    )
+
+    try:
+        create_notification_once(
+            db,
+            notification_type=(
+                "validation_required"
+            ),
+            level="warning",
+            title=(
+                f"Validation requise : {offer_title}"
+            )[:200],
+            message=(
+                f"{company} · Cette candidature "
+                f"est en attente de validation "
+                f"manuelle. Priorité : "
+                f"{item.priority}."
+            ),
+            target_url=(
+                f"#validation-{item.id}"
+            ),
+        )
+    except Exception:
+        db.rollback()
+
+        logger.exception(
+            (
+                "Unable to create validation "
+                "notification for queue item %s."
+            ),
+            item.id,
+        )
+
+
 def create_validation_queue_item(
     db: Session,
     match_result_id: int,
@@ -101,7 +163,9 @@ def create_validation_queue_item(
         offer_id=match_result.offer_id,
         match_result_id=match_result.id,
         status="pending",
-        priority=match_result.application_priority,
+        priority=(
+            match_result.application_priority
+        ),
     )
 
     db.add(item)
@@ -120,6 +184,11 @@ def create_validation_queue_item(
         ) from error
 
     db.refresh(item)
+
+    create_validation_notification(
+        db,
+        item=item,
+    )
 
     return item
 

@@ -1,20 +1,58 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+)
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas import CollectorRunRead
+from app.schemas import (
+    CollectorRunHistoryRead,
+    CollectorRunRead,
+    CollectorRunStatus,
+    CollectorTrigger,
+)
+from app.services.collector_runs import (
+    execute_collector_run,
+    list_collector_runs,
+)
 from app.services.collectors.la_bonne_alternance import (
     CollectorAPIError,
     CollectorConfigurationError,
-    collect_lba_offers,
 )
-from app.services.offer_importer import import_job_offers
 
 
 router = APIRouter(
     prefix="/collectors",
     tags=["Collectors"],
 )
+
+
+@router.get(
+    "/runs",
+    response_model=list[CollectorRunHistoryRead],
+)
+def get_collector_runs(
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=100,
+    ),
+    trigger: CollectorTrigger | None = Query(
+        default=None,
+    ),
+    status: CollectorRunStatus | None = Query(
+        default=None,
+    ),
+    db: Session = Depends(get_db),
+) -> list:
+    return list_collector_runs(
+        db,
+        limit=limit,
+        trigger=trigger,
+        status=status,
+    )
 
 
 @router.post(
@@ -25,22 +63,26 @@ def run_la_bonne_alternance_collector(
     db: Session = Depends(get_db),
 ) -> CollectorRunRead:
     try:
-        offers = collect_lba_offers()
+        _, result = execute_collector_run(
+            db,
+            trigger="manual",
+        )
     except CollectorConfigurationError as error:
         raise HTTPException(
             status_code=503,
-            detail="La Bonne Alternance API key is not configured",
+            detail=(
+                "La Bonne Alternance API key "
+                "is not configured"
+            ),
         ) from error
     except CollectorAPIError as error:
         raise HTTPException(
             status_code=502,
-            detail="La Bonne Alternance API is unavailable",
+            detail=(
+                "La Bonne Alternance API "
+                "is unavailable"
+            ),
         ) from error
-
-    result = import_job_offers(
-        db=db,
-        offers=offers,
-    )
 
     return CollectorRunRead(
         found=result.found,
