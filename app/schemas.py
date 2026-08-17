@@ -184,6 +184,7 @@ class JobOfferRead(ORMModel):
     source_url: str | None
     status: str
     published_at: datetime | None
+    applied_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

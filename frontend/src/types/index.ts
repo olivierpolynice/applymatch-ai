@@ -35,6 +35,7 @@ export interface JobOffer {
   source_url: string | null;
   status: JobOfferStatus;
   published_at: string | null;
+  applied_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -179,4 +180,26 @@ export interface Notification {
 
 export interface NotificationUnreadCount {
   unread_count: number;
+}
+export type CollectorTrigger =
+  | "manual"
+  | "scheduled";
+
+export type CollectorRunStatus =
+  | "running"
+  | "completed"
+  | "failed";
+
+export interface CollectorRunHistory {
+  id: number;
+  collector: string;
+  trigger: CollectorTrigger;
+  status: CollectorRunStatus;
+  found: number;
+  added: number;
+  duplicates: number;
+  errors: number;
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
 }

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 from fastapi import (
@@ -19,15 +18,9 @@ from app.api.routes.job_offers import (
 from app.db.session import get_db
 from app.models import MatchResult
 from app.schemas import MatchResultRead
-from app.services.matching import calculate
-from app.services.notifications import (
-    create_notification_once,
+from app.services.match_results import (
+    save_match_result,
 )
-
-
-logger = logging.getLogger(__name__)
-
-HIGH_SCORE_THRESHOLD = 70
 
 
 router = APIRouter(
@@ -84,45 +77,6 @@ def serialize_match(
     }
 
 
-def create_high_score_notification(
-    db: Session,
-    *,
-    result: MatchResult,
-    offer_title: str,
-    company: str,
-) -> None:
-    if result.score < HIGH_SCORE_THRESHOLD:
-        return
-
-    try:
-        create_notification_once(
-            db,
-            notification_type="high_score",
-            level="success",
-            title=(
-                f"Offre compatible : {offer_title}"
-            )[:200],
-            message=(
-                f"{company} · Score de compatibilité "
-                f"{result.score}/100. Une validation "
-                "manuelle est recommandée."
-            ),
-            target_url=(
-                f"#match-{result.id}"
-            ),
-        )
-    except Exception:
-        db.rollback()
-
-        logger.exception(
-            (
-                "Unable to create high-score "
-                "notification for match %s."
-            ),
-            result.id,
-        )
-
-
 @router.post(
     "/profile/{profile_id}/offer/{offer_id}",
     response_model=MatchResultRead,
@@ -141,41 +95,10 @@ def match_profile_offer(
         db,
     )
 
-    values = calculate(
-        profile,
-        offer,
-    )
-
-    statement = select(MatchResult).where(
-        MatchResult.profile_id == profile_id,
-        MatchResult.offer_id == offer_id,
-    )
-
-    result = db.scalar(statement)
-
-    if result is None:
-        result = MatchResult(
-            profile_id=profile_id,
-            offer_id=offer_id,
-            **values,
-        )
-        db.add(result)
-    else:
-        for key, value in values.items():
-            setattr(
-                result,
-                key,
-                value,
-            )
-
-    db.commit()
-    db.refresh(result)
-
-    create_high_score_notification(
+    result = save_match_result(
         db,
-        result=result,
-        offer_title=offer.title,
-        company=offer.company,
+        profile=profile,
+        offer=offer,
     )
 
     return serialize_match(result)

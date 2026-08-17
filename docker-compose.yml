@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: applymatch-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-applymatch}
+      POSTGRES_USER: ${POSTGRES_USER:-applymatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-applymatch_local_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - applymatch_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  applymatch_postgres_data:
+

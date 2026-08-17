@@ -6,6 +6,9 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.api.auth_dependencies import (
+    get_current_admin,
+)
 from app.db.session import get_db
 from app.schemas import (
     NotificationRead,
@@ -24,6 +27,9 @@ from app.services.notifications import (
 router = APIRouter(
     prefix="/notifications",
     tags=["Notifications"],
+    dependencies=[
+        Depends(get_current_admin),
+    ],
 )
 
 
@@ -90,7 +96,7 @@ def read_all_notifications(
 def read_notification(
     notification_id: int,
     db: Session = Depends(get_db),
-):
+) -> NotificationRead:
     notification = get_notification(
         db,
         notification_id,

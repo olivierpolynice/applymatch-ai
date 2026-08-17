@@ -1,4 +1,4 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 
 
 OFFER_DATA = {
@@ -7,8 +7,8 @@ OFFER_DATA = {
     "location": "Paris",
     "contract_type": "Alternance",
     "description": (
-        "Administration des réseaux, sécurité des systèmes, support aux "
-        "utilisateurs et participation aux projets de cybersécurité."
+        "Administration des rÃ©seaux, sÃ©curitÃ© des systÃ¨mes, support aux "
+        "utilisateurs et participation aux projets de cybersÃ©curitÃ©."
     ),
     "source": "Import manuel",
     "source_url": "https://example.com/jobs/akuo-network-security",
@@ -16,8 +16,8 @@ OFFER_DATA = {
 }
 
 
-def create_offer(client: TestClient) -> dict:
-    response = client.post(
+def create_offer(authenticated_client: TestClient) -> dict:
+    response = authenticated_client.post(
         "/job-offers",
         json=OFFER_DATA,
     )
@@ -27,8 +27,8 @@ def create_offer(client: TestClient) -> dict:
     return response.json()
 
 
-def test_create_job_offer(client: TestClient) -> None:
-    response = client.post(
+def test_create_job_offer(authenticated_client: TestClient) -> None:
+    response = authenticated_client.post(
         "/job-offers",
         json=OFFER_DATA,
     )
@@ -45,10 +45,10 @@ def test_create_job_offer(client: TestClient) -> None:
     assert "updated_at" in data
 
 
-def test_list_job_offers(client: TestClient) -> None:
-    created_offer = create_offer(client)
+def test_list_job_offers(authenticated_client: TestClient) -> None:
+    created_offer = create_offer(authenticated_client)
 
-    response = client.get("/job-offers")
+    response = authenticated_client.get("/job-offers")
 
     assert response.status_code == 200
 
@@ -60,11 +60,11 @@ def test_list_job_offers(client: TestClient) -> None:
 
 
 def test_filter_job_offers_by_status(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    create_offer(client)
+    create_offer(authenticated_client)
 
-    response = client.get(
+    response = authenticated_client.get(
         "/job-offers",
         params={"status": "new"},
     )
@@ -72,7 +72,7 @@ def test_filter_job_offers_by_status(
     assert response.status_code == 200
     assert len(response.json()) == 1
 
-    empty_response = client.get(
+    empty_response = authenticated_client.get(
         "/job-offers",
         params={"status": "saved"},
     )
@@ -81,10 +81,10 @@ def test_filter_job_offers_by_status(
     assert empty_response.json() == []
 
 
-def test_get_job_offer(client: TestClient) -> None:
-    created_offer = create_offer(client)
+def test_get_job_offer(authenticated_client: TestClient) -> None:
+    created_offer = create_offer(authenticated_client)
 
-    response = client.get(
+    response = authenticated_client.get(
         f"/job-offers/{created_offer['id']}",
     )
 
@@ -93,11 +93,11 @@ def test_get_job_offer(client: TestClient) -> None:
 
 
 def test_update_job_offer_status(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    created_offer = create_offer(client)
+    created_offer = create_offer(authenticated_client)
 
-    response = client.patch(
+    response = authenticated_client.patch(
         f"/job-offers/{created_offer['id']}",
         json={"status": "saved"},
     )
@@ -107,12 +107,81 @@ def test_update_job_offer_status(
     assert response.json()["title"] == OFFER_DATA["title"]
 
 
-def test_duplicate_source_url_returns_409(
+def test_mark_job_offer_as_applied(
+    authenticated_client: TestClient,
+) -> None:
+    created_offer = create_offer(authenticated_client)
+
+    response = authenticated_client.post(
+        f"/job-offers/{created_offer['id']}/mark-applied",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "applied"
+    assert data["applied_at"] is not None
+
+    history_response = authenticated_client.get(
+        "/job-offers",
+        params={"status": "applied"},
+    )
+
+    assert history_response.status_code == 200
+    assert len(history_response.json()) == 1
+    assert history_response.json()[0]["id"] == (
+        created_offer["id"]
+    )
+
+
+def test_mark_applied_requires_authentication(
     client: TestClient,
 ) -> None:
-    create_offer(client)
-
     response = client.post(
+        "/job-offers/1/mark-applied",
+    )
+
+    assert response.status_code == 401
+
+
+def test_mark_applied_twice_is_rejected(
+    authenticated_client: TestClient,
+) -> None:
+    created_offer = create_offer(authenticated_client)
+    path = (
+        f"/job-offers/{created_offer['id']}"
+        "/mark-applied"
+    )
+
+    first_response = authenticated_client.post(path)
+    second_response = authenticated_client.post(path)
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 409
+    assert second_response.json() == {
+        "detail": (
+            "Job offer is already marked as applied"
+        )
+    }
+
+
+def test_mark_unknown_offer_as_applied_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.post(
+        "/job-offers/999/mark-applied",
+    )
+
+    assert response.status_code == 404
+
+
+def test_duplicate_source_url_returns_409(
+    authenticated_client: TestClient,
+) -> None:
+    create_offer(authenticated_client)
+
+    response = authenticated_client.post(
         "/job-offers",
         json=OFFER_DATA,
     )
@@ -126,9 +195,9 @@ def test_duplicate_source_url_returns_409(
 
 
 def test_unknown_job_offer_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.get("/job-offers/999")
+    response = authenticated_client.get("/job-offers/999")
 
     assert response.status_code == 404
     assert response.json() == {
@@ -137,12 +206,12 @@ def test_unknown_job_offer_returns_404(
 
 
 def test_invalid_job_offer_returns_422(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     invalid_offer = OFFER_DATA.copy()
     invalid_offer["description"] = "court"
 
-    response = client.post(
+    response = authenticated_client.post(
         "/job-offers",
         json=invalid_offer,
     )
@@ -151,12 +220,12 @@ def test_invalid_job_offer_returns_422(
 
 
 def test_create_job_offer_without_source_url(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     offer_without_url = OFFER_DATA.copy()
     offer_without_url["source_url"] = None
 
-    response = client.post(
+    response = authenticated_client.post(
         "/job-offers",
         json=offer_without_url,
     )
@@ -171,7 +240,7 @@ def test_create_job_offer_without_source_url(
 
 
 def test_duplicate_offer_without_url_returns_409(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     first_offer = OFFER_DATA.copy()
     first_offer["source_url"] = None
@@ -183,11 +252,11 @@ def test_duplicate_offer_without_url_returns_409(
     second_offer["company"] = " AKUO "
     second_offer["location"] = "  PARIS "
 
-    first_response = client.post(
+    first_response = authenticated_client.post(
         "/job-offers",
         json=first_offer,
     )
-    second_response = client.post(
+    second_response = authenticated_client.post(
         "/job-offers",
         json=second_offer,
     )

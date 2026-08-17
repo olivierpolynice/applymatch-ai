@@ -1,22 +1,32 @@
 import os
 from collections.abc import Generator
 
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+
+load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "sqlite+pysqlite:///./applymatch.db",
 )
 
-connect_args = (
-    {"check_same_thread": False}
-    if DATABASE_URL.startswith("sqlite")
-    else {}
+engine_options: dict[str, object] = {
+    "pool_pre_ping": True,
+}
+
+if DATABASE_URL.startswith("sqlite"):
+    engine_options["connect_args"] = {
+        "check_same_thread": False,
+    }
+
+engine = create_engine(
+    DATABASE_URL,
+    **engine_options,
 )
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,

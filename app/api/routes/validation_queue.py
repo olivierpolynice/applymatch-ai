@@ -7,6 +7,9 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.auth_dependencies import (
+    get_current_admin,
+)
 from app.db.session import get_db
 from app.models import ValidationQueueItem
 from app.schemas import (
@@ -25,6 +28,9 @@ from app.services.validation_queue import (
 router = APIRouter(
     prefix="/validation-queue",
     tags=["Validation queue"],
+    dependencies=[
+        Depends(get_current_admin),
+    ],
 )
 
 

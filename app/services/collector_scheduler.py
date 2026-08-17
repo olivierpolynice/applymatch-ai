@@ -5,11 +5,7 @@ from dataclasses import dataclass
 
 from app.db.session import SessionLocal
 from app.services.collector_runs import (
-    execute_collector_run,
-)
-from app.services.collectors.la_bonne_alternance import (
-    CollectorAPIError,
-    CollectorConfigurationError,
+    execute_all_collector_runs,
 )
 from app.services.offer_importer import ImportResult
 
@@ -120,7 +116,7 @@ def parse_interval_minutes(
 
 def execute_scheduled_collection() -> ImportResult:
     with SessionLocal() as db:
-        _, result = execute_collector_run(
+        result = execute_all_collector_runs(
             db,
             trigger="scheduled",
         )
@@ -133,25 +129,6 @@ async def run_collection_once() -> ImportResult | None:
         result = await asyncio.to_thread(
             execute_scheduled_collection,
         )
-    except CollectorConfigurationError:
-        logger.error(
-            (
-                "Scheduled collection skipped: "
-                "LBA_API_KEY is not configured."
-            )
-        )
-
-        return None
-    except CollectorAPIError:
-        logger.exception(
-            (
-                "Scheduled collection failed: "
-                "La Bonne Alternance API "
-                "is unavailable."
-            )
-        )
-
-        return None
     except Exception:
         logger.exception(
             (
@@ -224,8 +201,7 @@ def start_collector_scheduler(
             scheduler_settings,
         ),
         name=(
-            "la-bonne-alternance-"
-            "scheduler"
+            "multi-source-collector-scheduler"
         ),
     )
 

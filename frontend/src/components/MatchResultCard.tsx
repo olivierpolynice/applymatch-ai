@@ -1,6 +1,16 @@
+"use client";
+
+import {
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import { apiRequest } from "@/lib/api";
 import type {
   JobOffer,
   MatchResult,
+  ValidationQueueCreate,
+  ValidationQueueItem,
 } from "@/types";
 
 interface MatchResultCardProps {
@@ -12,15 +22,52 @@ export default function MatchResultCard({
   result,
   offer,
 }: MatchResultCardProps) {
+  const queryClient = useQueryClient();
+
+  const addToQueueMutation = useMutation({
+    mutationFn: () => {
+      const data: ValidationQueueCreate = {
+        match_result_id: result.id,
+      };
+
+      return apiRequest<ValidationQueueItem>(
+        "/validation-queue",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        },
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["validation-queue"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["notifications"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "notifications-unread-count",
+          ],
+        }),
+      ]);
+    },
+  });
+
+  const isEligible =
+    result.decision !== "skip";
+
   return (
     <article
-  id={`match-${result.id}`}
-  className="scroll-mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6"
->
+      id={`match-${result.id}`}
+      className="scroll-mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6"
+    >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-medium text-cyan-400">
-            {offer?.company ?? "Entreprise inconnue"}
+            {offer?.company ??
+              "Entreprise inconnue"}
           </p>
 
           <h2 className="mt-1 text-xl font-bold">
@@ -29,7 +76,8 @@ export default function MatchResultCard({
           </h2>
 
           <p className="mt-2 text-sm text-slate-400">
-            {offer?.location ?? "Localisation inconnue"}
+            {offer?.location ??
+              "Localisation inconnue"}
             {" · "}
             {offer?.contract_type ??
               "Contrat non renseigné"}
@@ -45,7 +93,9 @@ export default function MatchResultCard({
               label={`Décision : ${formatDecision(
                 result.decision,
               )}`}
-              color={decisionColor(result.decision)}
+              color={decisionColor(
+                result.decision,
+              )}
             />
 
             <Badge
@@ -84,7 +134,9 @@ export default function MatchResultCard({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <ScoreCard
             label="Compétences"
-            score={result.details.skills_score}
+            score={
+              result.details.skills_score
+            }
             maximum={45}
             matched={
               result.matched_skills.length > 0
@@ -95,28 +147,42 @@ export default function MatchResultCard({
             label="Métier"
             score={result.details.role_score}
             maximum={25}
-            matched={result.details.role_match}
+            matched={
+              result.details.role_match
+            }
           />
 
           <ScoreCard
             label="Contrat"
-            score={result.details.contract_score}
+            score={
+              result.details.contract_score
+            }
             maximum={15}
-            matched={result.details.contract_match}
+            matched={
+              result.details.contract_match
+            }
           />
 
           <ScoreCard
             label="Localisation"
-            score={result.details.location_score}
+            score={
+              result.details.location_score
+            }
             maximum={10}
-            matched={result.details.location_match}
+            matched={
+              result.details.location_match
+            }
           />
 
           <ScoreCard
             label="Études"
-            score={result.details.education_score}
+            score={
+              result.details.education_score
+            }
             maximum={5}
-            matched={result.details.education_match}
+            matched={
+              result.details.education_match
+            }
           />
         </div>
       </section>
@@ -132,7 +198,9 @@ export default function MatchResultCard({
 
         <SkillList
           title="Compétences à renforcer"
-          skills={result.skills_to_strengthen}
+          skills={
+            result.skills_to_strengthen
+          }
           emptyMessage="Aucune compétence à renforcer"
           titleColor="text-amber-400"
           badgeColor="bg-amber-950 text-amber-300"
@@ -154,23 +222,82 @@ export default function MatchResultCard({
 
         {result.actions.length > 0 ? (
           <ul className="mt-3 grid gap-2">
-            {result.actions.map((action, index) => (
-              <li
-                key={`${result.id}-${index}`}
-                className="flex gap-3 text-sm text-slate-300"
-              >
-                <span className="text-violet-400">
-                  •
-                </span>
+            {result.actions.map(
+              (action, index) => (
+                <li
+                  key={`${result.id}-${index}`}
+                  className="flex gap-3 text-sm text-slate-300"
+                >
+                  <span className="text-violet-400">
+                    •
+                  </span>
 
-                <span>{action}</span>
-              </li>
-            ))}
+                  <span>{action}</span>
+                </li>
+              ),
+            )}
           </ul>
         ) : (
           <p className="mt-3 text-sm text-slate-500">
-            Aucune action particulière recommandée.
+            Aucune action particulière
+            recommandée.
           </p>
+        )}
+      </section>
+
+      <section className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-cyan-300">
+          Validation manuelle
+        </h3>
+
+        {!isEligible && (
+          <p className="mt-3 text-sm text-slate-400">
+            Cette offre a été classée « Ignorer » et
+            ne peut pas être ajoutée à la file de
+            validation.
+          </p>
+        )}
+
+        {isEligible &&
+          !addToQueueMutation.isSuccess && (
+            <>
+              <p className="mt-3 text-sm text-slate-400">
+                Ajoute cette opportunité à la file
+                pour pouvoir l’approuver ou la
+                rejeter manuellement.
+              </p>
+
+              <button
+                type="button"
+                disabled={
+                  addToQueueMutation.isPending
+                }
+                onClick={() =>
+                  addToQueueMutation.mutate()
+                }
+                className="mt-4 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {addToQueueMutation.isPending
+                  ? "Ajout en cours..."
+                  : "Ajouter à la validation"}
+              </button>
+            </>
+          )}
+
+        {addToQueueMutation.isSuccess && (
+          <div className="mt-3 rounded-lg border border-emerald-800 bg-emerald-950/40 p-4 text-sm text-emerald-300">
+            Cette opportunité a été ajoutée à la
+            file de validation.
+          </div>
+        )}
+
+        {addToQueueMutation.isError && (
+          <div className="mt-3 rounded-lg border border-red-900 bg-red-950/40 p-4 text-sm text-red-300">
+            Impossible d’ajouter cette opportunité :{" "}
+            {addToQueueMutation.error instanceof Error
+              ? addToQueueMutation.error.message
+              : "erreur inconnue"}
+          </div>
         )}
       </section>
 
@@ -234,7 +361,9 @@ function ScoreCard({
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
         <div
           className="h-full rounded-full bg-cyan-400"
-          style={{ width: `${percentage}%` }}
+          style={{
+            width: `${percentage}%`,
+          }}
         />
       </div>
     </div>
@@ -302,7 +431,9 @@ function Badge({
   );
 }
 
-function formatDecision(decision: string): string {
+function formatDecision(
+  decision: string,
+): string {
   const labels: Record<string, string> = {
     apply: "À valider",
     review: "À examiner",
@@ -312,7 +443,9 @@ function formatDecision(decision: string): string {
   return labels[decision] ?? decision;
 }
 
-function formatPriority(priority: string): string {
+function formatPriority(
+  priority: string,
+): string {
   const labels: Record<string, string> = {
     high: "Haute",
     medium: "Moyenne",
@@ -322,7 +455,9 @@ function formatPriority(priority: string): string {
   return labels[priority] ?? priority;
 }
 
-function decisionColor(decision: string): string {
+function decisionColor(
+  decision: string,
+): string {
   if (decision === "apply") {
     return "border-emerald-800 bg-emerald-950 text-emerald-300";
   }
@@ -334,7 +469,9 @@ function decisionColor(decision: string): string {
   return "border-slate-700 bg-slate-950 text-slate-400";
 }
 
-function priorityColor(priority: string): string {
+function priorityColor(
+  priority: string,
+): string {
   if (priority === "high") {
     return "border-red-800 bg-red-950 text-red-300";
   }

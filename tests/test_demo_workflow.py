@@ -1,16 +1,16 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 
 
 PROFILE_DATA = {
     "full_name": "Olivier Polynice",
     "education_level": "Bac+5",
-    "program": "Master Réseaux, Cybersécurité & Cloud",
+    "program": "Master RÃ©seaux, CybersÃ©curitÃ© & Cloud",
     "target_contract": "Alternance",
     "availability": "Septembre 2026",
     "work_schedule": "4 jours en entreprise",
-    "location": "Île-de-France",
+    "location": "ÃŽle-de-France",
     "target_roles": (
-        "Cybersécurité, administration systèmes et réseaux, "
+        "CybersÃ©curitÃ©, administration systÃ¨mes et rÃ©seaux, "
         "cloud, DevSecOps"
     ),
     "skills": (
@@ -23,12 +23,12 @@ PROFILE_DATA = {
 OFFER_DATA = {
     "title": "Alternance Network & Security Administrator",
     "company": "Entreprise Demo",
-    "location": "Paris, Île-de-France",
+    "location": "Paris, ÃŽle-de-France",
     "contract_type": "Alternance",
     "description": (
-        "Administration des systèmes et réseaux, sécurisation des "
+        "Administration des systÃ¨mes et rÃ©seaux, sÃ©curisation des "
         "infrastructures, supervision, Linux, Docker, cloud, "
-        "networking et gestion des incidents de sécurité."
+        "networking et gestion des incidents de sÃ©curitÃ©."
     ),
     "source": "ApplyMatch Demo",
     "source_url": (
@@ -39,8 +39,8 @@ OFFER_DATA = {
 }
 
 
-def test_complete_demo_workflow(client: TestClient) -> None:
-    profile_response = client.post(
+def test_complete_demo_workflow(authenticated_client: TestClient) -> None:
+    profile_response = authenticated_client.post(
         "/candidate-profiles",
         json=PROFILE_DATA,
     )
@@ -51,7 +51,7 @@ def test_complete_demo_workflow(client: TestClient) -> None:
     assert profile["full_name"] == "Olivier Polynice"
     assert profile["is_active"] is True
 
-    offer_response = client.post(
+    offer_response = authenticated_client.post(
         "/job-offers",
         json=OFFER_DATA,
     )
@@ -62,7 +62,7 @@ def test_complete_demo_workflow(client: TestClient) -> None:
     assert offer["title"] == OFFER_DATA["title"]
     assert offer["status"] == "new"
 
-    matching_response = client.post(
+    matching_response = authenticated_client.post(
         f"/matching/profile/{profile['id']}/offer/{offer['id']}"
     )
 
@@ -74,7 +74,7 @@ def test_complete_demo_workflow(client: TestClient) -> None:
     assert isinstance(matching["matched_skills"], list)
     assert isinstance(matching["missing_skills"], list)
 
-    results_response = client.get(
+    results_response = authenticated_client.get(
         f"/matching/profile/{profile['id']}/results"
     )
 

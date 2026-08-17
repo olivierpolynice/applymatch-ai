@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -14,12 +14,12 @@ from app.services.collectors.la_bonne_alternance import (
 
 def build_collected_offer() -> JobOfferCreate:
     return JobOfferCreate(
-        title="Alternance Ingénieur IA et Cloud",
+        title="Alternance IngÃ©nieur IA et Cloud",
         company="Entreprise Innovation",
         location="Paris",
         contract_type="Apprentissage",
         description=(
-            "Participation au développement de solutions "
+            "Participation au dÃ©veloppement de solutions "
             "d'intelligence artificielle sur une "
             "plateforme cloud."
         ),
@@ -32,7 +32,7 @@ def build_collected_offer() -> JobOfferCreate:
 
 
 def test_run_collector_imports_offers(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -42,7 +42,7 @@ def test_run_collector_imports_offers(
         lambda: [build_collected_offer()],
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
@@ -54,7 +54,7 @@ def test_run_collector_imports_offers(
         "errors": 0,
     }
 
-    offers_response = client.get("/job-offers")
+    offers_response = authenticated_client.get("/job-offers")
 
     assert offers_response.status_code == 200
     assert len(offers_response.json()) == 1
@@ -78,7 +78,7 @@ def test_run_collector_imports_offers(
 
 
 def test_run_collector_reports_duplicates(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -90,10 +90,10 @@ def test_run_collector_reports_duplicates(
         lambda: [offer],
     )
 
-    first_response = client.post(
+    first_response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
-    second_response = client.post(
+    second_response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
@@ -130,7 +130,7 @@ def test_run_collector_reports_duplicates(
 
 
 def test_run_collector_without_api_key_returns_503(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -145,7 +145,7 @@ def test_run_collector_without_api_key_returns_503(
         raise_configuration_error,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
@@ -172,7 +172,7 @@ def test_run_collector_without_api_key_returns_503(
 
 
 def test_run_collector_api_error_returns_502(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -187,7 +187,7 @@ def test_run_collector_api_error_returns_502(
         raise_api_error,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
@@ -213,7 +213,7 @@ def test_run_collector_api_error_returns_502(
 
 
 def test_list_collector_runs(
-    client: TestClient,
+    authenticated_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -222,13 +222,13 @@ def test_list_collector_runs(
         lambda: [build_collected_offer()],
     )
 
-    run_response = client.post(
+    run_response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
     assert run_response.status_code == 200
 
-    history_response = client.get(
+    history_response = authenticated_client.get(
         "/collectors/runs"
     )
 
@@ -248,7 +248,7 @@ def test_list_collector_runs(
 
 
 def test_list_collector_runs_filters_status(
-    client: TestClient,
+    authenticated_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def raise_api_error():
@@ -262,20 +262,20 @@ def test_list_collector_runs_filters_status(
         raise_api_error,
     )
 
-    run_response = client.post(
+    run_response = authenticated_client.post(
         "/collectors/la-bonne-alternance/run"
     )
 
     assert run_response.status_code == 502
 
-    failed_response = client.get(
+    failed_response = authenticated_client.get(
         "/collectors/runs",
         params={
             "status": "failed",
             "trigger": "manual",
         },
     )
-    completed_response = client.get(
+    completed_response = authenticated_client.get(
         "/collectors/runs",
         params={
             "status": "completed",

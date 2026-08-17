@@ -1,4 +1,4 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models import MatchResult
@@ -6,12 +6,12 @@ from tests.test_candidate_profiles import PROFILE_DATA
 from tests.test_job_offers import OFFER_DATA
 
 
-def create_match(client: TestClient) -> dict:
-    profile_response = client.post(
+def create_match(authenticated_client: TestClient) -> dict:
+    profile_response = authenticated_client.post(
         "/candidate-profiles",
         json=PROFILE_DATA,
     )
-    offer_response = client.post(
+    offer_response = authenticated_client.post(
         "/job-offers",
         json=OFFER_DATA,
     )
@@ -22,7 +22,7 @@ def create_match(client: TestClient) -> dict:
     profile = profile_response.json()
     offer = offer_response.json()
 
-    match_response = client.post(
+    match_response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -33,10 +33,10 @@ def create_match(client: TestClient) -> dict:
 
 
 def add_match_to_queue(
-    client: TestClient,
+    authenticated_client: TestClient,
     match_result_id: int,
 ) -> dict:
-    response = client.post(
+    response = authenticated_client.post(
         "/validation-queue",
         json={
             "match_result_id": match_result_id,
@@ -49,11 +49,11 @@ def add_match_to_queue(
 
 
 def test_add_recommended_match_to_validation_queue(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
 
-    response = client.post(
+    response = authenticated_client.post(
         "/validation-queue",
         json={
             "match_result_id": match_result["id"],
@@ -76,22 +76,22 @@ def test_add_recommended_match_to_validation_queue(
 
 
 def test_list_validation_queue_with_filters(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    included_response = client.get(
+    included_response = authenticated_client.get(
         "/validation-queue",
         params={
             "status": "pending",
             "priority": queue_item["priority"],
         },
     )
-    excluded_response = client.get(
+    excluded_response = authenticated_client.get(
         "/validation-queue",
         params={"status": "rejected"},
     )
@@ -107,15 +107,15 @@ def test_list_validation_queue_with_filters(
 
 
 def test_get_validation_queue_item(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    response = client.get(
+    response = authenticated_client.get(
         f"/validation-queue/{queue_item['id']}"
     )
 
@@ -124,12 +124,12 @@ def test_get_validation_queue_item(
 
 
 def test_duplicate_match_is_rejected(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
-    add_match_to_queue(client, match_result["id"])
+    match_result = create_match(authenticated_client)
+    add_match_to_queue(authenticated_client, match_result["id"])
 
-    response = client.post(
+    response = authenticated_client.post(
         "/validation-queue",
         json={
             "match_result_id": match_result["id"],
@@ -146,9 +146,9 @@ def test_duplicate_match_is_rejected(
 
 
 def test_unknown_match_is_rejected(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.post(
+    response = authenticated_client.post(
         "/validation-queue",
         json={"match_result_id": 999},
     )
@@ -160,10 +160,10 @@ def test_unknown_match_is_rejected(
 
 
 def test_skip_match_is_not_eligible(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     stored_match = db_session.get(
         MatchResult,
         match_result["id"],
@@ -175,7 +175,7 @@ def test_skip_match_is_not_eligible(
     stored_match.application_priority = "low"
     db_session.commit()
 
-    response = client.post(
+    response = authenticated_client.post(
         "/validation-queue",
         json={
             "match_result_id": match_result["id"],
@@ -192,15 +192,15 @@ def test_skip_match_is_not_eligible(
 
 
 def test_approve_queue_item_without_sending_application(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    response = client.patch(
+    response = authenticated_client.patch(
         (
             f"/validation-queue/{queue_item['id']}"
             "/decision"
@@ -208,7 +208,7 @@ def test_approve_queue_item_without_sending_application(
         json={
             "decision": "approved",
             "reviewer_comment": (
-                "CV à adapter avant toute candidature."
+                "CV Ã  adapter avant toute candidature."
             ),
         },
     )
@@ -219,11 +219,11 @@ def test_approve_queue_item_without_sending_application(
 
     assert data["status"] == "approved"
     assert data["reviewer_comment"] == (
-        "CV à adapter avant toute candidature."
+        "CV Ã  adapter avant toute candidature."
     )
     assert data["decided_at"] is not None
 
-    offer_response = client.get(
+    offer_response = authenticated_client.get(
         f"/job-offers/{match_result['offer_id']}"
     )
 
@@ -232,15 +232,15 @@ def test_approve_queue_item_without_sending_application(
 
 
 def test_reject_queue_item(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    response = client.patch(
+    response = authenticated_client.patch(
         (
             f"/validation-queue/{queue_item['id']}"
             "/decision"
@@ -259,11 +259,11 @@ def test_reject_queue_item(
 
 
 def test_final_decision_cannot_be_changed(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
     endpoint = (
@@ -271,11 +271,11 @@ def test_final_decision_cannot_be_changed(
         "/decision"
     )
 
-    first_response = client.patch(
+    first_response = authenticated_client.patch(
         endpoint,
         json={"decision": "approved"},
     )
-    second_response = client.patch(
+    second_response = authenticated_client.patch(
         endpoint,
         json={"decision": "rejected"},
     )
@@ -291,12 +291,12 @@ def test_final_decision_cannot_be_changed(
 
 
 def test_unknown_queue_item_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    get_response = client.get(
+    get_response = authenticated_client.get(
         "/validation-queue/999"
     )
-    decision_response = client.patch(
+    decision_response = authenticated_client.patch(
         "/validation-queue/999/decision",
         json={"decision": "approved"},
     )

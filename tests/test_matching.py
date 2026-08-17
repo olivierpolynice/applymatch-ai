@@ -1,4 +1,4 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -9,10 +9,10 @@ from tests.test_job_offers import OFFER_DATA
 
 
 def create_profile(
-    client: TestClient,
+    authenticated_client: TestClient,
     profile_data: dict | None = None,
 ) -> dict:
-    response = client.post(
+    response = authenticated_client.post(
         "/candidate-profiles",
         json=profile_data or PROFILE_DATA,
     )
@@ -23,10 +23,10 @@ def create_profile(
 
 
 def create_offer(
-    client: TestClient,
+    authenticated_client: TestClient,
     offer_data: dict | None = None,
 ) -> dict:
-    response = client.post(
+    response = authenticated_client.post(
         "/job-offers",
         json=offer_data or OFFER_DATA,
     )
@@ -37,12 +37,12 @@ def create_offer(
 
 
 def test_match_profile_with_offer(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    profile = create_profile(client)
-    offer = create_offer(client)
+    profile = create_profile(authenticated_client)
+    offer = create_offer(authenticated_client)
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -104,12 +104,12 @@ def test_match_profile_with_offer(
 
 
 def test_matching_detects_expected_skills(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    profile = create_profile(client)
-    offer = create_offer(client)
+    profile = create_profile(authenticated_client)
+    offer = create_offer(authenticated_client)
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -123,7 +123,7 @@ def test_matching_detects_expected_skills(
 
 
 def test_matching_classifies_beginner_skills(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     profile_data = PROFILE_DATA.copy()
     profile_data["skills"] = (
@@ -133,7 +133,7 @@ def test_matching_classifies_beginner_skills(
     )
 
     profile = create_profile(
-        client,
+        authenticated_client,
         profile_data,
     )
 
@@ -152,11 +152,11 @@ def test_matching_classifies_beginner_skills(
     )
 
     offer = create_offer(
-        client,
+        authenticated_client,
         offer_data,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -181,7 +181,7 @@ def test_matching_classifies_beginner_skills(
 
 
 def test_matching_detects_ai_skills(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     profile_data = PROFILE_DATA.copy()
     profile_data["target_roles"] = (
@@ -194,7 +194,7 @@ def test_matching_detects_ai_skills(
     )
 
     profile = create_profile(
-        client,
+        authenticated_client,
         profile_data,
     )
 
@@ -213,11 +213,11 @@ def test_matching_detects_ai_skills(
     )
 
     offer = create_offer(
-        client,
+        authenticated_client,
         offer_data,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -235,11 +235,11 @@ def test_matching_detects_ai_skills(
 
 
 def test_matching_unknown_profile_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    offer = create_offer(client)
+    offer = create_offer(authenticated_client)
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/999/offer/{offer['id']}"
     )
 
@@ -250,11 +250,11 @@ def test_matching_unknown_profile_returns_404(
 
 
 def test_matching_unknown_offer_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    profile = create_profile(client)
+    profile = create_profile(authenticated_client)
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}/offer/999"
     )
 
@@ -265,9 +265,9 @@ def test_matching_unknown_offer_returns_404(
 
 
 def test_matching_with_missing_skill(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    profile = create_profile(client)
+    profile = create_profile(authenticated_client)
 
     offer_data = OFFER_DATA.copy()
     offer_data["source_url"] = (
@@ -284,11 +284,11 @@ def test_matching_with_missing_skill(
     )
 
     offer = create_offer(
-        client,
+        authenticated_client,
         offer_data,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -304,9 +304,9 @@ def test_matching_with_missing_skill(
 
 
 def test_matching_handles_ile_de_france_department(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    profile = create_profile(client)
+    profile = create_profile(authenticated_client)
 
     offer_data = OFFER_DATA.copy()
     offer_data["source_url"] = (
@@ -318,11 +318,11 @@ def test_matching_handles_ile_de_france_department(
     )
 
     offer = create_offer(
-        client,
+        authenticated_client,
         offer_data,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -336,19 +336,19 @@ def test_matching_handles_ile_de_france_department(
 
 
 def test_matching_is_saved_and_updated(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
-    profile = create_profile(client)
-    offer = create_offer(client)
+    profile = create_profile(authenticated_client)
+    offer = create_offer(authenticated_client)
 
     endpoint = (
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
 
-    first_response = client.post(endpoint)
-    second_response = client.post(endpoint)
+    first_response = authenticated_client.post(endpoint)
+    second_response = authenticated_client.post(endpoint)
 
     assert first_response.status_code == 200
     assert second_response.status_code == 200
@@ -393,11 +393,11 @@ def test_matching_is_saved_and_updated(
 
 
 def test_list_match_results_sorted_by_score(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
-    profile = create_profile(client)
-    first_offer = create_offer(client)
+    profile = create_profile(authenticated_client)
+    first_offer = create_offer(authenticated_client)
 
     second_offer_data = OFFER_DATA.copy()
     second_offer_data["source_url"] = (
@@ -409,15 +409,15 @@ def test_list_match_results_sorted_by_score(
     )
 
     second_offer = create_offer(
-        client,
+        authenticated_client,
         second_offer_data,
     )
 
-    first_match_response = client.post(
+    first_match_response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{first_offer['id']}"
     )
-    second_match_response = client.post(
+    second_match_response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{second_offer['id']}"
     )
@@ -443,7 +443,7 @@ def test_list_match_results_sorted_by_score(
     second_result.score = 90
     db_session.commit()
 
-    response = client.get(
+    response = authenticated_client.get(
         f"/matching/profile/{profile['id']}/results"
     )
 
@@ -459,13 +459,13 @@ def test_list_match_results_sorted_by_score(
 
 
 def test_list_match_results_filters_minimum_score(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
-    profile = create_profile(client)
-    offer = create_offer(client)
+    profile = create_profile(authenticated_client)
+    offer = create_offer(authenticated_client)
 
-    match_response = client.post(
+    match_response = authenticated_client.post(
         f"/matching/profile/{profile['id']}"
         f"/offer/{offer['id']}"
     )
@@ -484,11 +484,11 @@ def test_list_match_results_filters_minimum_score(
     stored_result.score = 65
     db_session.commit()
 
-    included_response = client.get(
+    included_response = authenticated_client.get(
         f"/matching/profile/{profile['id']}/results"
         "?minimum_score=60"
     )
-    excluded_response = client.get(
+    excluded_response = authenticated_client.get(
         f"/matching/profile/{profile['id']}/results"
         "?minimum_score=70"
     )
@@ -501,9 +501,9 @@ def test_list_match_results_filters_minimum_score(
 
 
 def test_list_match_results_rejects_invalid_requests(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    unknown_profile_response = client.get(
+    unknown_profile_response = authenticated_client.get(
         "/matching/profile/999/results"
     )
 
@@ -512,9 +512,9 @@ def test_list_match_results_rejects_invalid_requests(
         "detail": "Candidate profile not found"
     }
 
-    profile = create_profile(client)
+    profile = create_profile(authenticated_client)
 
-    invalid_score_response = client.get(
+    invalid_score_response = authenticated_client.get(
         f"/matching/profile/{profile['id']}/results"
         "?minimum_score=101"
     )

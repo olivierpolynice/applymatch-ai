@@ -1,14 +1,20 @@
+from datetime import datetime, timezone
+
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     Query,
+    status,
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.auth_dependencies import (
+    get_current_admin,
+)
 from app.db.session import get_db
-from app.models import JobOffer
+from app.models import AdminUser, JobOffer
 from app.schemas import (
     JobOfferCreate,
     JobOfferRead,
@@ -49,6 +55,9 @@ def get_offer_or_404(
 def create_job_offer(
     data: JobOfferCreate,
     db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
 ) -> JobOffer:
     try:
         return create_job_offer_service(
@@ -107,6 +116,9 @@ def update_job_offer(
     offer_id: int,
     data: JobOfferUpdate,
     db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
 ) -> JobOffer:
     offer = get_offer_or_404(
         offer_id,
@@ -116,6 +128,13 @@ def update_job_offer(
         exclude_unset=True,
     )
 
+    new_status = update_data.get("status")
+
+    if new_status == "applied" and offer.status != "applied":
+        offer.applied_at = datetime.now(timezone.utc)
+    elif new_status is not None and new_status != "applied":
+        offer.applied_at = None
+
     for key, value in update_data.items():
         setattr(offer, key, value)
 
@@ -123,3 +142,54 @@ def update_job_offer(
     db.refresh(offer)
 
     return offer
+
+
+@router.post(
+    "/{offer_id}/mark-applied",
+    response_model=JobOfferRead,
+)
+def mark_job_offer_as_applied(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
+) -> JobOffer:
+    offer = get_offer_or_404(
+        offer_id,
+        db,
+    )
+
+    if offer.status == "applied":
+        raise HTTPException(
+            status_code=409,
+            detail="Job offer is already marked as applied",
+        )
+
+    offer.status = "applied"
+    offer.applied_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(offer)
+
+    return offer
+
+
+@router.delete(
+    "/{offer_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_job_offer(
+    offer_id: int,
+    db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
+) -> None:
+    offer = get_offer_or_404(
+        offer_id,
+        db,
+    )
+
+    db.delete(offer)
+    db.commit()

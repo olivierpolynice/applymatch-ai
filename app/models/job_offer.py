@@ -53,6 +53,11 @@ class JobOffer(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+    applied_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,

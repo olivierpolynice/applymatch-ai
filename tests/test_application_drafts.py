@@ -7,15 +7,15 @@ from tests.test_validation_queue import (
 
 
 def create_approved_queue_item(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> tuple[dict, dict]:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    approval_response = client.patch(
+    approval_response = authenticated_client.patch(
         (
             f"/validation-queue/{queue_item['id']}"
             "/decision"
@@ -34,10 +34,10 @@ def create_approved_queue_item(
 
 
 def create_draft(
-    client: TestClient,
+    authenticated_client: TestClient,
     queue_item_id: int,
 ) -> dict:
-    response = client.post(
+    response = authenticated_client.post(
         "/application-drafts",
         json={
             "validation_queue_item_id": queue_item_id,
@@ -50,15 +50,15 @@ def create_draft(
 
 
 def test_draft_generation_requires_manual_approval(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    match_result = create_match(client)
+    match_result = create_match(authenticated_client)
     queue_item = add_match_to_queue(
-        client,
+        authenticated_client,
         match_result["id"],
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/application-drafts",
         json={
             "validation_queue_item_id": queue_item["id"],
@@ -75,13 +75,13 @@ def test_draft_generation_requires_manual_approval(
 
 
 def test_create_application_draft(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     match_result, queue_item = (
-        create_approved_queue_item(client)
+        create_approved_queue_item(authenticated_client)
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/application-drafts",
         json={
             "validation_queue_item_id": queue_item["id"],
@@ -111,12 +111,12 @@ def test_create_application_draft(
 
 
 def test_duplicate_draft_is_rejected(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    _, queue_item = create_approved_queue_item(client)
-    create_draft(client, queue_item["id"])
+    _, queue_item = create_approved_queue_item(authenticated_client)
+    create_draft(authenticated_client, queue_item["id"])
 
-    response = client.post(
+    response = authenticated_client.post(
         "/application-drafts",
         json={
             "validation_queue_item_id": queue_item["id"],
@@ -133,9 +133,9 @@ def test_duplicate_draft_is_rejected(
 
 
 def test_unknown_validation_queue_item_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.post(
+    response = authenticated_client.post(
         "/application-drafts",
         json={"validation_queue_item_id": 999},
     )
@@ -147,19 +147,19 @@ def test_unknown_validation_queue_item_returns_404(
 
 
 def test_list_and_get_application_drafts(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    _, queue_item = create_approved_queue_item(client)
-    draft = create_draft(client, queue_item["id"])
+    _, queue_item = create_approved_queue_item(authenticated_client)
+    draft = create_draft(authenticated_client, queue_item["id"])
 
-    list_response = client.get(
+    list_response = authenticated_client.get(
         "/application-drafts",
         params={
             "status": "draft",
             "profile_id": draft["profile_id"],
         },
     )
-    get_response = client.get(
+    get_response = authenticated_client.get(
         f"/application-drafts/{draft['id']}"
     )
 
@@ -171,10 +171,10 @@ def test_list_and_get_application_drafts(
 
 
 def test_update_application_draft_manually(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    _, queue_item = create_approved_queue_item(client)
-    draft = create_draft(client, queue_item["id"])
+    _, queue_item = create_approved_queue_item(authenticated_client)
+    draft = create_draft(authenticated_client, queue_item["id"])
 
     updated_letter = (
         "Objet : Candidature personnalisée\n\n"
@@ -186,7 +186,7 @@ def test_update_application_draft_manually(
         "et validé manuellement."
     )
 
-    response = client.patch(
+    response = authenticated_client.patch(
         f"/application-drafts/{draft['id']}",
         json={
             "cover_letter": updated_letter,
@@ -203,12 +203,12 @@ def test_update_application_draft_manually(
 
 
 def test_regenerate_application_draft(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    _, queue_item = create_approved_queue_item(client)
-    draft = create_draft(client, queue_item["id"])
+    _, queue_item = create_approved_queue_item(authenticated_client)
+    draft = create_draft(authenticated_client, queue_item["id"])
 
-    manual_response = client.patch(
+    manual_response = authenticated_client.patch(
         f"/application-drafts/{draft['id']}",
         json={
             "cover_letter": (
@@ -221,7 +221,7 @@ def test_regenerate_application_draft(
 
     assert manual_response.status_code == 200
 
-    response = client.post(
+    response = authenticated_client.post(
         f"/application-drafts/{draft['id']}/regenerate"
     )
 
@@ -235,17 +235,17 @@ def test_regenerate_application_draft(
 
 
 def test_generating_draft_does_not_send_application(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
     match_result, queue_item = (
-        create_approved_queue_item(client)
+        create_approved_queue_item(authenticated_client)
     )
-    create_draft(client, queue_item["id"])
+    create_draft(authenticated_client, queue_item["id"])
 
-    offer_response = client.get(
+    offer_response = authenticated_client.get(
         f"/job-offers/{match_result['offer_id']}"
     )
-    queue_response = client.get(
+    queue_response = authenticated_client.get(
         f"/validation-queue/{queue_item['id']}"
     )
 
@@ -256,16 +256,16 @@ def test_generating_draft_does_not_send_application(
 
 
 def test_unknown_application_draft_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    get_response = client.get(
+    get_response = authenticated_client.get(
         "/application-drafts/999"
     )
-    update_response = client.patch(
+    update_response = authenticated_client.patch(
         "/application-drafts/999",
         json={"status": "reviewed"},
     )
-    regenerate_response = client.post(
+    regenerate_response = authenticated_client.post(
         "/application-drafts/999/regenerate"
     )
 

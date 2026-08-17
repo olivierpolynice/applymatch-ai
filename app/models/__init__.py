@@ -1,3 +1,4 @@
+from app.models.admin_user import AdminUser
 from app.models.application_draft import ApplicationDraft
 from app.models.candidate_profile import CandidateProfile
 from app.models.collector_run import CollectorRun
@@ -10,6 +11,7 @@ from app.models.validation_queue_item import (
 
 
 __all__ = [
+    "AdminUser",
     "ApplicationDraft",
     "CandidateProfile",
     "CollectorRun",

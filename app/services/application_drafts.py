@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -18,6 +19,21 @@ from app.services.notifications import (
 
 
 logger = logging.getLogger(__name__)
+
+FRENCH_MONTHS = {
+    1: "janvier",
+    2: "février",
+    3: "mars",
+    4: "avril",
+    5: "mai",
+    6: "juin",
+    7: "juillet",
+    8: "août",
+    9: "septembre",
+    10: "octobre",
+    11: "novembre",
+    12: "décembre",
+}
 
 
 class ApplicationDraftError(RuntimeError):
@@ -43,6 +59,100 @@ def format_skills(
         return "mes compétences techniques"
 
     return ", ".join(skills)
+
+
+def format_availability(value: str) -> str:
+    normalized_value = value.strip()
+    match = re.fullmatch(
+        r"(\d{4})-(\d{2})",
+        normalized_value,
+    )
+
+    if match is None:
+        return normalized_value
+
+    year = match.group(1)
+    month = int(match.group(2))
+    month_name = FRENCH_MONTHS.get(month)
+
+    if month_name is None:
+        return normalized_value
+
+    return f"{month_name} {year}"
+
+
+def format_contract(value: str) -> str:
+    normalized_value = value.strip().casefold()
+
+    if normalized_value == "alternance":
+        return "une alternance"
+
+    if normalized_value == "apprentissage":
+        return "un contrat d’apprentissage"
+
+    if normalized_value.startswith(("un ", "une ")):
+        return value.strip()
+
+    return value.strip()
+
+
+def join_french(items: list[str]) -> str:
+    if not items:
+        return "les métiers du numérique"
+
+    if len(items) == 1:
+        return items[0]
+
+    if len(items) == 2:
+        return f"{items[0]} et {items[1]}"
+
+    return (
+        ", ".join(items[:-1])
+        + f" ainsi que {items[-1]}"
+    )
+
+
+def format_target_domains(value: str) -> str:
+    normalized_value = value.casefold()
+    domains: list[str] = []
+
+    candidates = (
+        (
+            "la cybersécurité",
+            ("cybersécurité", "cybersecurite", "cyber"),
+        ),
+        ("le cloud", ("cloud",)),
+        ("le DevSecOps", ("devsecops",)),
+        (
+            "les systèmes et réseaux",
+            ("système", "systeme", "réseau", "reseau", "network"),
+        ),
+        (
+            "l’intelligence artificielle",
+            ("intelligence artificielle", "artificial intelligence"),
+        ),
+    )
+
+    for label, keywords in candidates:
+        if any(
+            keyword in normalized_value
+            for keyword in keywords
+        ):
+            domains.append(label)
+
+    return join_french(domains)
+
+
+def build_ai_experience_paragraph() -> str:
+    return (
+        "J’ai également acquis une expérience pratique "
+        "en intelligence artificielle en concevant "
+        "ApplyMatch AI, un assistant qui automatise la "
+        "collecte et le rapprochement d’offres, le "
+        "scoring et la préparation contrôlée de "
+        "brouillons, tout en maintenant une validation "
+        "humaine avant toute candidature."
+    )
 
 
 def get_draft_or_error(
@@ -135,6 +245,12 @@ def build_cover_letter(
     matched_skills = format_skills(
         match_result.matched_skills
     )
+    availability = format_availability(
+        profile.availability
+    )
+    target_domains = format_target_domains(
+        profile.target_roles
+    )
     professional_summary = (
         profile.professional_summary
         or (
@@ -150,7 +266,7 @@ def build_cover_letter(
     if profile.experience_highlights:
         experience_paragraph = (
             "\n\nMon parcours m’a notamment permis "
-            "de développer les expériences suivantes : "
+            "de développer des compétences concrètes : "
             f"{profile.experience_highlights}"
         )
 
@@ -158,10 +274,15 @@ def build_cover_letter(
 
     if profile.project_highlights:
         project_paragraph = (
-            "\n\nMes projets m’ont également permis "
-            "de mettre en pratique ces compétences : "
+            "\n\nMes projets m’ont permis de mettre "
+            "ces compétences en pratique, notamment : "
             f"{profile.project_highlights}"
         )
+
+    ai_experience_paragraph = (
+        "\n\n"
+        + build_ai_experience_paragraph()
+    )
 
     return (
         f"Objet : Candidature – {offer.title}\n\n"
@@ -169,14 +290,15 @@ def build_cover_letter(
         "Je souhaite vous proposer ma candidature "
         f"au poste de {offer.title} au sein de "
         f"{offer.company}. {professional_summary}\n\n"
-        "Cette opportunité correspond à mon projet "
-        "professionnel dans les domaines suivants : "
-        f"{profile.target_roles}. Mon profil présente "
-        "plusieurs compétences en adéquation avec "
-        f"l’offre, notamment {matched_skills}."
+        "Cette opportunité s’inscrit pleinement dans "
+        "mon projet professionnel, orienté vers "
+        f"{target_domains}. Les compétences détectées "
+        "comme directement pertinentes pour cette "
+        f"offre sont notamment {matched_skills}."
         f"{experience_paragraph}"
-        f"{project_paragraph}\n\n"
-        f"Disponible {profile.availability}, selon "
+        f"{project_paragraph}"
+        f"{ai_experience_paragraph}\n\n"
+        f"Disponible à partir de {availability}, selon "
         f"un rythme de {profile.work_schedule}, "
         "je serais heureux d’échanger avec vous afin "
         "de vous présenter plus précisément ma "
@@ -196,6 +318,12 @@ def build_short_message(
     highlighted_skills = format_skills(
         match_result.matched_skills[:4]
     )
+    availability = format_availability(
+        profile.availability
+    )
+    contract = format_contract(
+        profile.target_contract
+    )
 
     return (
         "Bonjour, je souhaite candidater à votre "
@@ -203,8 +331,9 @@ def build_short_message(
         f"{offer.company}. Actuellement en "
         f"{profile.education_level} – "
         f"{profile.program}, je recherche "
-        f"{profile.target_contract} à partir de "
-        f"{profile.availability}. Mes compétences "
+        f"{contract} à partir de {availability}. "
+        "J’ai développé une expérience pratique en IA "
+        "en concevant ApplyMatch AI. Mes compétences "
         f"en {highlighted_skills} correspondent "
         "aux missions proposées. Je serais ravi "
         "d’échanger avec vous. Cordialement, "
@@ -265,6 +394,14 @@ def build_cv_adaptation_tips(
                 f"{offer.company}."
             )
         )
+
+    tips.append(
+        (
+            "Valoriser l’expérience pratique en IA "
+            "acquise avec ApplyMatch AI, en précisant "
+            "les fonctionnalités réellement développées."
+        )
+    )
 
     tips.append(
         (

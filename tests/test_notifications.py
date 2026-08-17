@@ -1,4 +1,4 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.services.notifications import (
@@ -8,12 +8,12 @@ from app.services.notifications import (
 
 
 def test_list_notifications_is_empty(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.get(
+    response = authenticated_client.get(
         "/notifications"
     )
-    count_response = client.get(
+    count_response = authenticated_client.get(
         "/notifications/unread-count"
     )
 
@@ -27,7 +27,7 @@ def test_list_notifications_is_empty(
 
 
 def test_list_unread_notifications(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
     create_notification(
@@ -39,14 +39,14 @@ def test_list_unread_notifications(
         target_url="#offers",
     )
 
-    response = client.get(
+    response = authenticated_client.get(
         "/notifications",
         params={
             "unread_only": True,
             "notification_type": "new_offers",
         },
     )
-    count_response = client.get(
+    count_response = authenticated_client.get(
         "/notifications/unread-count"
     )
 
@@ -70,7 +70,7 @@ def test_list_unread_notifications(
 
 
 def test_mark_notification_as_read(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
     notification = create_notification(
@@ -78,11 +78,11 @@ def test_mark_notification_as_read(
         notification_type="high_score",
         level="success",
         title="Offre compatible",
-        message="Score de compatibilité : 85/100.",
+        message="Score de compatibilitÃ© : 85/100.",
         target_url="#match-1",
     )
 
-    response = client.patch(
+    response = authenticated_client.patch(
         f"/notifications/{notification.id}/read"
     )
 
@@ -94,7 +94,7 @@ def test_mark_notification_as_read(
     assert data["is_read"] is True
     assert data["read_at"] is not None
 
-    count_response = client.get(
+    count_response = authenticated_client.get(
         "/notifications/unread-count"
     )
 
@@ -104,7 +104,7 @@ def test_mark_notification_as_read(
 
 
 def test_mark_all_notifications_as_read(
-    client: TestClient,
+    authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
     create_notification(
@@ -119,12 +119,12 @@ def test_mark_all_notifications_as_read(
         db_session,
         notification_type="draft_ready",
         level="info",
-        title="Brouillon prêt",
-        message="Le brouillon est prêt à être vérifié.",
+        title="Brouillon prÃªt",
+        message="Le brouillon est prÃªt Ã  Ãªtre vÃ©rifiÃ©.",
         target_url="#draft-1-version-1",
     )
 
-    response = client.patch(
+    response = authenticated_client.patch(
         "/notifications/read-all"
     )
 
@@ -133,7 +133,7 @@ def test_mark_all_notifications_as_read(
         "unread_count": 0,
     }
 
-    unread_response = client.get(
+    unread_response = authenticated_client.get(
         "/notifications",
         params={"unread_only": True},
     )
@@ -143,9 +143,9 @@ def test_mark_all_notifications_as_read(
 
 
 def test_unknown_notification_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.patch(
+    response = authenticated_client.patch(
         "/notifications/999/read"
     )
 
@@ -164,7 +164,7 @@ def test_create_notification_once_is_idempotent(
             notification_type="high_score",
             level="success",
             title="Offre compatible",
-            message="Score de compatibilité : 90/100.",
+            message="Score de compatibilitÃ© : 90/100.",
             target_url="#match-12",
         )
     )
@@ -175,7 +175,7 @@ def test_create_notification_once_is_idempotent(
             notification_type="high_score",
             level="success",
             title="Offre compatible",
-            message="Score de compatibilité : 90/100.",
+            message="Score de compatibilitÃ© : 90/100.",
             target_url="#match-12",
         )
     )

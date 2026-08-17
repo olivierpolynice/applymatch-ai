@@ -2,11 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import NotificationCenter from "@/components/NotificationCenter";
+
+import ApplicationDraftsPanel from "@/components/ApplicationDraftsPanel";
+import ApplicationHistoryPanel from "@/components/ApplicationHistoryPanel";
+import AuthGuard from "@/components/AuthGuard";
+import CollectorHistoryPanel from "@/components/CollectorHistoryPanel";
 import CollectorPanel from "@/components/CollectorPanel";
 import ImportOfferForm from "@/components/ImportOfferForm";
 import JobOffersPanel from "@/components/JobOffersPanel";
+import LogoutButton from "@/components/LogoutButton";
 import MatchResultCard from "@/components/MatchResultCard";
+import NotificationCenter from "@/components/NotificationCenter";
+import ValidationQueuePanel from "@/components/ValidationQueuePanel";
 import { apiRequest } from "@/lib/api";
 import type {
   CandidateProfile,
@@ -28,8 +35,7 @@ export default function Home() {
   const activeProfile = profilesQuery.data
     ?.filter((profile) => profile.is_active)
     .sort(
-      (first, second) =>
-        second.id - first.id,
+      (first, second) => second.id - first.id,
     )[0];
 
   const offersQuery = useQuery({
@@ -59,6 +65,17 @@ export default function Home() {
     ]),
   );
 
+  const activeOfferIds = new Set(
+    (offersQuery.data ?? [])
+      .filter(
+        (offer) =>
+          offer.status !== "applied" &&
+          offer.status !== "rejected" &&
+          offer.status !== "archived",
+      )
+      .map((offer) => offer.id),
+  );
+
   const isLoading =
     profilesQuery.isLoading ||
     offersQuery.isLoading ||
@@ -71,168 +88,204 @@ export default function Home() {
     resultsQuery.error;
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <NotificationCenter />
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-10">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">
-            ApplyMatch AI
-          </p>
+    <AuthGuard>
+      <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+        <NotificationCenter />
 
-          <h1 className="text-4xl font-bold">
-            Tableau de bord des opportunités
-          </h1>
+        <div className="mx-auto max-w-6xl">
+          <header className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-cyan-400">
+                ApplyMatch AI
+              </p>
 
-          <p className="mt-3 max-w-2xl text-slate-400">
-            Consulte les offres analysées et leur
-            compatibilité avec ton profil. Aucune
-            candidature n’est envoyée automatiquement.
-          </p>
+              <h1 className="text-4xl font-bold">
+                Tableau de bord des opportunités
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-slate-400">
+                Consulte les offres analysées et leur
+                compatibilité avec ton profil. Aucune
+                candidature n’est envoyée automatiquement.
+              </p>
+
+              {activeProfile && (
+                <p className="mt-4 text-sm text-cyan-300">
+                  Profil actif : {activeProfile.full_name}
+                </p>
+              )}
+            </div>
+
+            <LogoutButton />
+          </header>
+
+          <CollectorPanel />
+
+          <CollectorHistoryPanel />
 
           {activeProfile && (
-            <p className="mt-4 text-sm text-cyan-300">
-              Profil actif : {activeProfile.full_name}
-            </p>
-          )}
-        </header>
-
-        <CollectorPanel />
-
-        {activeProfile && (
-          <ImportOfferForm
-            profileId={activeProfile.id}
-          />
-        )}
-
-        <section className="mb-8 grid gap-4 sm:grid-cols-3">
-          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-sm text-slate-400">
-              Offres importées
-            </p>
-
-            <p className="mt-2 text-3xl font-bold">
-              {offersQuery.data?.length ?? 0}
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-sm text-slate-400">
-              Offres analysées
-            </p>
-
-            <p className="mt-2 text-3xl font-bold">
-              {resultsQuery.data?.length ?? 0}
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-            <p className="text-sm text-slate-400">
-              Validation
-            </p>
-
-            <p className="mt-2 text-lg font-semibold text-emerald-400">
-              Toujours manuelle
-            </p>
-          </article>
-        </section>
-
-        {activeProfile &&
-          !offersQuery.isLoading &&
-          !offersQuery.error && (
-            <JobOffersPanel
-              offers={offersQuery.data ?? []}
-              results={resultsQuery.data ?? []}
+            <ImportOfferForm
               profileId={activeProfile.id}
             />
           )}
 
-        <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">
-              Résultats du matching
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Les offres sont classées du meilleur au
-              moins bon score.
-            </p>
-          </div>
-
-          <label className="flex items-center gap-3 text-sm">
-            Score minimal
-
-            <select
-              value={minimumScore}
-              onChange={(event) =>
-                setMinimumScore(
-                  Number(event.target.value),
-                )
-              }
-              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-            >
-              <option value={0}>Tous</option>
-              <option value={50}>50 et plus</option>
-              <option value={70}>70 et plus</option>
-              <option value={85}>85 et plus</option>
-            </select>
-          </label>
-        </section>
-
-        {isLoading && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-            Chargement des données...
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-2xl border border-red-900 bg-red-950/40 p-6 text-red-300">
-            Impossible de charger les données :{" "}
-            {error instanceof Error
-              ? error.message
-              : "erreur inconnue"}
-          </div>
-        )}
-
-        {!isLoading &&
-          !error &&
-          profilesQuery.data &&
-          !activeProfile && (
-            <div className="rounded-2xl border border-amber-900 bg-amber-950/40 p-6 text-amber-300">
-              Aucun profil actif n’a été trouvé.
-            </div>
-          )}
-
-        {!isLoading &&
-          !error &&
-          activeProfile &&
-          resultsQuery.data?.length === 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
-              <p className="font-semibold">
-                Aucun résultat trouvé
+          <section className="mb-8 grid gap-4 sm:grid-cols-3">
+            <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">
+                Offres importées
               </p>
 
-              <p className="mt-2 text-sm text-slate-400">
-                Aucune offre analysée ne correspond au
-                filtre sélectionné pour{" "}
-                {activeProfile.full_name}.
+              <p className="mt-2 text-3xl font-bold">
+                {offersQuery.data?.length ?? 0}
               </p>
-            </div>
-          )}
+            </article>
 
-        {!isLoading && !error && (
-          <section className="grid gap-5">
-            {resultsQuery.data?.map((result) => (
-              <MatchResultCard
-                key={result.id}
-                result={result}
-                offer={offersById.get(
-                  result.offer_id,
-                )}
-              />
-            ))}
+            <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">
+                Offres analysées
+              </p>
+
+              <p className="mt-2 text-3xl font-bold">
+                {resultsQuery.data?.length ?? 0}
+              </p>
+            </article>
+
+            <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">
+                Validation
+              </p>
+
+              <p className="mt-2 text-lg font-semibold text-emerald-400">
+                Toujours manuelle
+              </p>
+            </article>
           </section>
-        )}
-      </div>
-    </main>
+
+          {activeProfile &&
+            !offersQuery.isLoading &&
+            !offersQuery.error && (
+              <JobOffersPanel
+                offers={offersQuery.data ?? []}
+                results={resultsQuery.data ?? []}
+                profileId={activeProfile.id}
+              />
+            )}
+
+          {!offersQuery.isLoading &&
+            !offersQuery.error && (
+              <ApplicationHistoryPanel
+                offers={offersQuery.data ?? []}
+              />
+            )}
+
+          {!offersQuery.isLoading &&
+            !offersQuery.error && (
+              <ValidationQueuePanel
+                offers={offersQuery.data ?? []}
+              />
+            )}
+
+          {activeProfile &&
+            !offersQuery.isLoading &&
+            !offersQuery.error && (
+              <ApplicationDraftsPanel
+                profileId={activeProfile.id}
+                offers={offersQuery.data ?? []}
+              />
+            )}
+
+          <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">
+                Résultats du matching
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-400">
+                Les offres sont classées du meilleur au
+                moins bon score.
+              </p>
+            </div>
+
+            <label className="flex items-center gap-3 text-sm">
+              Score minimal
+
+              <select
+                value={minimumScore}
+                onChange={(event) =>
+                  setMinimumScore(
+                    Number(event.target.value),
+                  )
+                }
+                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              >
+                <option value={0}>Tous</option>
+                <option value={50}>50 et plus</option>
+                <option value={70}>70 et plus</option>
+                <option value={85}>85 et plus</option>
+              </select>
+            </label>
+          </section>
+
+          {isLoading && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+              Chargement des données...
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-2xl border border-red-900 bg-red-950/40 p-6 text-red-300">
+              Impossible de charger les données :{" "}
+              {error instanceof Error
+                ? error.message
+                : "erreur inconnue"}
+            </div>
+          )}
+
+          {!isLoading &&
+            !error &&
+            profilesQuery.data &&
+            !activeProfile && (
+              <div className="rounded-2xl border border-amber-900 bg-amber-950/40 p-6 text-amber-300">
+                Aucun profil actif n’a été trouvé.
+              </div>
+            )}
+
+          {!isLoading &&
+            !error &&
+            activeProfile &&
+            resultsQuery.data?.length === 0 && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+                <p className="font-semibold">
+                  Aucun résultat trouvé
+                </p>
+
+                <p className="mt-2 text-sm text-slate-400">
+                  Aucune offre analysée ne correspond au
+                  filtre sélectionné pour{" "}
+                  {activeProfile.full_name}.
+                </p>
+              </div>
+            )}
+
+          {!isLoading && !error && (
+            <section className="grid gap-5">
+              {resultsQuery.data
+                ?.filter((result) =>
+                  activeOfferIds.has(result.offer_id),
+                )
+                .map((result) => (
+                  <MatchResultCard
+                    key={result.id}
+                    result={result}
+                    offer={offersById.get(
+                      result.offer_id,
+                    )}
+                  />
+                ))}
+            </section>
+          )}
+        </div>
+      </main>
+    </AuthGuard>
   );
 }

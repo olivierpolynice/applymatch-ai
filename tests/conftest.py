@@ -9,10 +9,22 @@ from sqlalchemy.pool import StaticPool
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.models import CandidateProfile  # noqa: F401
+from app.models import (  # noqa: F401
+    AdminUser,
+    CandidateProfile,
+)
+from app.services.admin_users import (
+    create_admin_user,
+)
 
 
 TEST_DATABASE_URL = "sqlite+pysqlite:///:memory:"
+TEST_ADMIN_EMAIL = "admin@applymatch.test"
+TEST_ADMIN_PASSWORD = "MotDePasse-Test-2026!"
+TEST_JWT_SECRET = (
+    "applymatch-test-secret-key-"
+    "with-at-least-32-characters"
+)
 
 test_engine = create_engine(
     TEST_DATABASE_URL,
@@ -41,13 +53,67 @@ def db_session() -> Generator[Session, None, None]:
 
 
 @pytest.fixture
-def client(db_session: Session) -> Generator[TestClient, None, None]:
-    def override_get_db() -> Generator[Session, None, None]:
+def client(
+    db_session: Session,
+) -> Generator[TestClient, None, None]:
+    def override_get_db() -> (
+        Generator[Session, None, None]
+    ):
         yield db_session
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_db] = (
+        override_get_db
+    )
 
     with TestClient(app) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def authenticated_client(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[TestClient, None, None]:
+    monkeypatch.setenv(
+        "JWT_SECRET_KEY",
+        TEST_JWT_SECRET,
+    )
+    monkeypatch.setenv(
+        "JWT_ACCESS_TOKEN_MINUTES",
+        "30",
+    )
+
+    create_admin_user(
+        db_session,
+        email=TEST_ADMIN_EMAIL,
+        password=TEST_ADMIN_PASSWORD,
+    )
+
+    login_response = client.post(
+        "/auth/login",
+        json={
+            "email": TEST_ADMIN_EMAIL,
+            "password": TEST_ADMIN_PASSWORD,
+        },
+    )
+
+    if login_response.status_code != 200:
+        raise RuntimeError(
+            "Unable to authenticate the test client"
+        )
+
+    access_token = login_response.json()[
+        "access_token"
+    ]
+    client.headers.update(
+        {
+            "Authorization": (
+                f"Bearer {access_token}"
+            ),
+        }
+    )
+
+    yield client

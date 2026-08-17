@@ -7,6 +7,9 @@ from fastapi import (
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.auth_dependencies import (
+    get_current_admin,
+)
 from app.db.session import get_db
 from app.models import ApplicationDraft
 from app.schemas import (
@@ -26,6 +29,9 @@ from app.services.application_drafts import (
 router = APIRouter(
     prefix="/application-drafts",
     tags=["Application drafts"],
+    dependencies=[
+        Depends(get_current_admin),
+    ],
 )
 
 
