@@ -12,8 +12,31 @@ class AdminUserAlreadyExistsError(RuntimeError):
     pass
 
 
+class AdminUserNotFoundError(RuntimeError):
+    pass
+
+
 def normalize_email(email: str) -> str:
     return email.strip().casefold()
+
+
+def validate_email_and_password(
+    email: str,
+    password: str,
+) -> str:
+    normalized_email = normalize_email(email)
+
+    if not normalized_email or "@" not in normalized_email:
+        raise ValueError(
+            "Une adresse email valide est obligatoire."
+        )
+
+    if len(password) < 12:
+        raise ValueError(
+            "Le mot de passe doit contenir au moins 12 caractères."
+        )
+
+    return normalized_email
 
 
 def get_admin_by_email(
@@ -22,8 +45,7 @@ def get_admin_by_email(
 ) -> AdminUser | None:
     return db.scalar(
         select(AdminUser).where(
-            AdminUser.email
-            == normalize_email(email),
+            AdminUser.email == normalize_email(email),
         )
     )
 
@@ -34,24 +56,14 @@ def create_admin_user(
     email: str,
     password: str,
 ) -> AdminUser:
-    normalized_email = normalize_email(email)
-
-    if not normalized_email or "@" not in normalized_email:
-        raise ValueError(
-            "A valid email address is required"
-        )
-
-    if len(password) < 12:
-        raise ValueError(
-            (
-                "The administrator password must "
-                "contain at least 12 characters"
-            )
-        )
+    normalized_email = validate_email_and_password(
+        email,
+        password,
+    )
 
     if get_admin_by_email(db, normalized_email):
         raise AdminUserAlreadyExistsError(
-            "An administrator already uses this email"
+            "Un administrateur utilise déjà cette adresse email."
         )
 
     admin = AdminUser(
@@ -61,6 +73,36 @@ def create_admin_user(
     )
 
     db.add(admin)
+    db.commit()
+    db.refresh(admin)
+
+    return admin
+
+
+def reset_admin_password(
+    db: Session,
+    *,
+    email: str,
+    password: str,
+) -> AdminUser:
+    normalized_email = validate_email_and_password(
+        email,
+        password,
+    )
+
+    admin = get_admin_by_email(
+        db,
+        normalized_email,
+    )
+
+    if admin is None:
+        raise AdminUserNotFoundError(
+            "Aucun administrateur trouvé avec cette adresse email."
+        )
+
+    admin.hashed_password = hash_password(password)
+    admin.is_active = True
+
     db.commit()
     db.refresh(admin)
 
