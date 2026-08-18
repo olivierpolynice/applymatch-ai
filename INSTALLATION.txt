@@ -1,0 +1,28 @@
+APPLYMATCH AI — CORRECTIF DE DÉPLOIEMENT
+
+1. Ferme le serveur Uvicorn.
+2. Décompresse ce ZIP directement dans C:\DevOps\applymatch-ai
+3. Accepte le remplacement de app\main.py et .env.example.
+4. Dans PowerShell, à la racine du projet :
+
+   git status
+   python -m compileall -q app scripts migrations
+   alembic heads
+   alembic upgrade head
+   python -m pytest tests -q
+
+5. Le résultat attendu de "alembic heads" est :
+
+   a29d4e8c613f (head)
+
+6. Si les tests passent :
+
+   git add .env.example app/main.py migrations/versions/a29d4e8c613f_create_admin_users.py scripts/bootstrap_admin.py render.yaml DEPLOYMENT.md
+   git commit -m "Prepare production deployment"
+   git push
+
+IMPORTANT
+- Ne copie jamais ton fichier .env dans GitHub.
+- Ne publie pas le ZIP original applymatch-ai.zip : il contient des fichiers locaux privés.
+- ADMIN_PASSWORD doit contenir au moins 12 caractères.
+- Suis ensuite DEPLOYMENT.md dans cet ordre : Neon, Render, Vercel.

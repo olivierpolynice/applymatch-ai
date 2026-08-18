@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,27 @@ from app.services.collector_scheduler import (
     stop_collector_scheduler,
 )
 from app.services.profile_loader import sync_profile
+
+
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+)
+
+
+def get_cors_origins() -> list[str]:
+    configured_origins = os.getenv("CORS_ORIGINS", "")
+
+    if not configured_origins.strip():
+        return list(DEFAULT_CORS_ORIGINS)
+
+    return [
+        origin.strip().rstrip("/")
+        for origin in configured_origins.split(",")
+        if origin.strip()
+    ]
 
 
 @asynccontextmanager
@@ -38,12 +60,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
