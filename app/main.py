@@ -19,20 +19,21 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:3001",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
+    "https://applymatch-ai.vercel.app",
 )
 
 
 def get_cors_origins() -> list[str]:
+    origins = list(DEFAULT_CORS_ORIGINS)
     configured_origins = os.getenv("CORS_ORIGINS", "")
 
-    if not configured_origins.strip():
-        return list(DEFAULT_CORS_ORIGINS)
+    for origin in configured_origins.split(","):
+        normalized_origin = origin.strip().rstrip("/")
 
-    return [
-        origin.strip().rstrip("/")
-        for origin in configured_origins.split(",")
-        if origin.strip()
-    ]
+        if normalized_origin and normalized_origin not in origins:
+            origins.append(normalized_origin)
+
+    return origins
 
 
 @asynccontextmanager
