@@ -13,7 +13,7 @@ from app.models import (
 from app.models.application_archive import utc_now
 
 
-AUTOMATIC_SCORE_THRESHOLD = 85
+AUTOMATIC_SCORE_THRESHOLD = 70
 AUTHORIZED_CHANNELS = {
     "official_api",
     "recruitment_email",

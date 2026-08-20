@@ -195,10 +195,14 @@ class MatchDetails(BaseModel):
     contract_score: int
     location_score: int
     education_score: int
+    experience_score: int
+    freshness_score: int
     role_match: bool
     contract_match: bool
     location_match: bool
     education_match: bool
+    experience_match: bool
+    eligibility_reasons: list[str]
 
 
 class MatchResultRead(ORMModel):

@@ -165,7 +165,7 @@ export default function Home() {
               </p>
 
               <p className="mt-2 text-lg font-semibold text-emerald-400">
-                Toujours manuelle
+                Automatique à partir de 70 si le canal est autorisé
               </p>
             </article>
           </section>

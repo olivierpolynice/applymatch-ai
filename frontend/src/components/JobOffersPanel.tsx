@@ -17,6 +17,8 @@ interface OfferActionRequest {
   offerTitle: string;
 }
 
+type OfferSection = "new" | "manual" | "priority" | "rejected";
+
 export default function JobOffersPanel({
   offers,
   results,
@@ -25,30 +27,57 @@ export default function JobOffersPanel({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [section, setSection] = useState<OfferSection>("new");
 
-  const activeOffers = useMemo(
-    () =>
-      offers.filter(
-        (offer) =>
-          offer.status !== "applied" &&
-          offer.status !== "rejected" &&
-          offer.status !== "archived",
-      ),
-    [offers],
+  const resultsByOfferId = useMemo(
+    () => new Map(
+      results.map((result) => [result.offer_id, result]),
+    ),
+    [results],
   );
 
-  const resultsByOfferId = new Map(
-    results.map((result) => [result.offer_id, result]),
-  );
+  const sectionOffers = useMemo(() => {
+    return offers.filter((offer) => {
+      if (offer.status === "applied" || offer.status === "archived") {
+        return false;
+      }
+      const matching = resultsByOfferId.get(offer.id);
+      if (section === "rejected") {
+        return offer.status === "rejected" || matching?.decision === "rejected";
+      }
+      if (offer.status === "rejected" || matching?.decision === "rejected") {
+        return false;
+      }
+      if (section === "priority") {
+        return matching?.decision === "automatic_ready";
+      }
+      if (section === "manual") {
+        return matching?.decision === "manual_review";
+      }
+      return matching === undefined;
+    });
+  }, [offers, resultsByOfferId, section]);
+
+  const sectionCounts = {
+    new: offers.filter((offer) =>
+      offer.status === "new" && !resultsByOfferId.has(offer.id),
+    ).length,
+    manual: results.filter((result) => result.decision === "manual_review").length,
+    priority: results.filter((result) => result.decision === "automatic_ready").length,
+    rejected: offers.filter((offer) =>
+      offer.status === "rejected" ||
+      resultsByOfferId.get(offer.id)?.decision === "rejected",
+    ).length,
+  };
 
   const filteredOffers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("fr");
 
     if (!normalizedSearch) {
-      return activeOffers;
+      return sectionOffers;
     }
 
-    return activeOffers.filter((offer) =>
+    return sectionOffers.filter((offer) =>
       [
         offer.title,
         offer.company,
@@ -60,7 +89,7 @@ export default function JobOffersPanel({
         .toLocaleLowerCase("fr")
         .includes(normalizedSearch),
     );
-  }, [activeOffers, search]);
+  }, [sectionOffers, search]);
 
   const matchingMutation = useMutation({
     mutationFn: ({ offerId }: OfferActionRequest) =>
@@ -72,9 +101,10 @@ export default function JobOffersPanel({
       setFeedback(
         `${variables.offerTitle} analysée : ${matching.score}/100`,
       );
-      await queryClient.invalidateQueries({
-        queryKey: ["match-results"],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["match-results"] }),
+        queryClient.invalidateQueries({ queryKey: ["job-offers"] }),
+      ]);
     },
     onError: () => setFeedback(""),
   });
@@ -105,8 +135,9 @@ export default function JobOffersPanel({
           </p>
           <h2 className="mt-2 text-2xl font-bold">Offres collectées</h2>
           <p className="mt-2 text-sm text-slate-400">
-            Analyse les offres actives et enregistre manuellement tes
-            candidatures. ApplyMatch AI n’envoie rien automatiquement.
+            Les offres sont séparées selon le nouvel algorithme. Un score
+            d’au moins 70 prépare la candidature prioritaire ; l’envoi réel
+            exige toujours un canal compatible et une confirmation.
           </p>
         </div>
 
@@ -122,6 +153,28 @@ export default function JobOffersPanel({
         </label>
       </div>
 
+      <div className="mt-6 flex flex-wrap gap-2">
+        {([
+          ["new", "Nouvelles"],
+          ["manual", "À examiner (<70)"],
+          ["priority", "Prioritaires (≥70)"],
+          ["rejected", "Rejetées"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setSection(value)}
+            className={`rounded-lg border px-4 py-2 text-sm font-semibold ${
+              section === value
+                ? "border-cyan-500 bg-cyan-950 text-cyan-200"
+                : "border-slate-700 bg-slate-950 text-slate-400"
+            }`}
+          >
+            {label} ({sectionCounts[value]})
+          </button>
+        ))}
+      </div>
+
       <div className="mt-6 flex items-center justify-between text-sm">
         <p className="text-slate-400">
           {filteredOffers.length} offre
@@ -133,13 +186,13 @@ export default function JobOffersPanel({
         </p>
       </div>
 
-      {activeOffers.length === 0 && (
+      {sectionOffers.length === 0 && (
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-6 text-center text-slate-400">
-          Aucune offre active. Lance le collecteur ou consulte l’historique.
+          Aucune offre dans cette section.
         </div>
       )}
 
-      {activeOffers.length > 0 && filteredOffers.length === 0 && (
+      {sectionOffers.length > 0 && filteredOffers.length === 0 && (
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-6 text-center text-slate-400">
           Aucune offre ne correspond à cette recherche.
         </div>
@@ -193,7 +246,7 @@ export default function JobOffersPanel({
                         rel="noreferrer"
                         className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-600 hover:text-cyan-300"
                       >
-                        Voir l’offre
+                        Voir et postuler
                       </a>
                     ) : (
                       <span className="rounded-lg border border-slate-800 px-4 py-2 text-sm text-slate-600">
@@ -201,6 +254,7 @@ export default function JobOffersPanel({
                       </span>
                     )}
 
+                    {section !== "rejected" && (<>
                     <button
                       type="button"
                       disabled={
@@ -242,8 +296,9 @@ export default function JobOffersPanel({
                       }}
                       className="rounded-lg border border-emerald-700 bg-emerald-950 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isMarkingApplied ? "Enregistrement..." : "J’ai postulé"}
+                      {isMarkingApplied ? "Enregistrement..." : "Confirmer ma candidature"}
                     </button>
+                    </>)}
                   </div>
                 </div>
               </article>

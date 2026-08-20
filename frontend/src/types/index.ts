@@ -57,10 +57,14 @@ export interface MatchDetails {
   contract_score: number;
   location_score: number;
   education_score: number;
+  experience_score: number;
+  freshness_score: number;
   role_match: boolean;
   contract_match: boolean;
   location_match: boolean;
   education_match: boolean;
+  experience_match: boolean;
+  eligibility_reasons: string[];
 }
 
 export interface MatchResult {

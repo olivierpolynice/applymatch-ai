@@ -101,6 +101,14 @@ def save_match_result(
     db.commit()
     db.refresh(result)
 
+    if result.decision == "rejected" and offer.status not in {
+        "applied",
+        "archived",
+    }:
+        offer.status = "rejected"
+        db.commit()
+        db.refresh(offer)
+
     create_high_score_notification(
         db,
         result=result,

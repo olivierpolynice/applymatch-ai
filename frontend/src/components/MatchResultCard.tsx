@@ -56,7 +56,7 @@ export default function MatchResultCard({
   });
 
   const isEligible =
-    result.decision !== "skip";
+    result.decision !== "rejected";
 
   return (
     <article
@@ -131,13 +131,13 @@ export default function MatchResultCard({
           Détail du score
         </h3>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ScoreCard
             label="Compétences"
             score={
               result.details.skills_score
             }
-            maximum={45}
+            maximum={30}
             matched={
               result.matched_skills.length > 0
             }
@@ -175,7 +175,7 @@ export default function MatchResultCard({
           />
 
           <ScoreCard
-            label="Études"
+            label="Profil/missions"
             score={
               result.details.education_score
             }
@@ -183,6 +183,20 @@ export default function MatchResultCard({
             matched={
               result.details.education_match
             }
+          />
+
+          <ScoreCard
+            label="Expérience 0–2 ans"
+            score={result.details.experience_score}
+            maximum={10}
+            matched={result.details.experience_match}
+          />
+
+          <ScoreCard
+            label="Fraîcheur"
+            score={result.details.freshness_score}
+            maximum={5}
+            matched={result.details.freshness_score > 0}
           />
         </div>
       </section>
@@ -435,9 +449,9 @@ function formatDecision(
   decision: string,
 ): string {
   const labels: Record<string, string> = {
-    apply: "À valider",
-    review: "À examiner",
-    skip: "Ignorer",
+    automatic_ready: "Prioritaire (≥70)",
+    manual_review: "À examiner",
+    rejected: "Rejetée",
   };
 
   return labels[decision] ?? decision;
@@ -458,11 +472,11 @@ function formatPriority(
 function decisionColor(
   decision: string,
 ): string {
-  if (decision === "apply") {
+  if (decision === "automatic_ready") {
     return "border-emerald-800 bg-emerald-950 text-emerald-300";
   }
 
-  if (decision === "review") {
+  if (decision === "manual_review") {
     return "border-amber-800 bg-amber-950 text-amber-300";
   }
 

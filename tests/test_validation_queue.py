@@ -159,7 +159,7 @@ def test_unknown_match_is_rejected(
     }
 
 
-def test_skip_match_is_not_eligible(
+def test_rejected_match_is_not_eligible(
     authenticated_client: TestClient,
     db_session: Session,
 ) -> None:
@@ -171,7 +171,7 @@ def test_skip_match_is_not_eligible(
 
     assert stored_match is not None
 
-    stored_match.decision = "skip"
+    stored_match.decision = "rejected"
     stored_match.application_priority = "low"
     db_session.commit()
 

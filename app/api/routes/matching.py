@@ -61,6 +61,12 @@ def serialize_match(
             "education_score": (
                 result.education_score
             ),
+            "experience_score": (
+                result.experience_score
+            ),
+            "freshness_score": (
+                result.freshness_score
+            ),
             "role_match": result.role_match,
             "contract_match": (
                 result.contract_match
@@ -70,6 +76,12 @@ def serialize_match(
             ),
             "education_match": (
                 result.education_match
+            ),
+            "experience_match": (
+                result.experience_match
+            ),
+            "eligibility_reasons": (
+                result.eligibility_reasons
             ),
         },
         "created_at": result.created_at,

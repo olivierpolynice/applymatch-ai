@@ -85,8 +85,10 @@ def test_match_profile_with_offer(
     assert details["contract_score"] == 15
     assert details["location_score"] == 10
     assert details["education_score"] == 5
+    assert details["experience_score"] == 10
+    assert 0 <= details["freshness_score"] <= 5
 
-    assert 0 <= details["skills_score"] <= 45
+    assert 0 <= details["skills_score"] <= 30
     assert details["role_score"] in {
         0,
         25,
@@ -99,6 +101,8 @@ def test_match_profile_with_offer(
             details["contract_score"],
             details["location_score"],
             details["education_score"],
+            details["experience_score"],
+            details["freshness_score"],
         ]
     )
 
@@ -301,6 +305,89 @@ def test_matching_with_missing_skill(
     assert "azure" in data["missing_skills"]
     assert "kubernetes" in data["missing_skills"]
     assert "terraform" in data["missing_skills"]
+
+
+def test_cdi_is_rejected_even_with_known_technologies(
+    authenticated_client: TestClient,
+) -> None:
+    profile = create_profile(authenticated_client)
+    offer_data = OFFER_DATA.copy()
+    offer_data.update(
+        {
+            "title": "Ingénieur Python FastAPI Cloud",
+            "contract_type": "CDI",
+            "description": (
+                "Développement Python, FastAPI, Docker et PostgreSQL "
+                "sur une plateforme cloud."
+            ),
+            "source_url": "https://example.com/jobs/cdi-known-stack",
+        }
+    )
+    offer = create_offer(authenticated_client, offer_data)
+
+    response = authenticated_client.post(
+        f"/matching/profile/{profile['id']}/offer/{offer['id']}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["score"] == 0
+    assert response.json()["decision"] == "rejected"
+    assert "contrat autre qu’alternance ou stage" in (
+        response.json()["details"]["eligibility_reasons"]
+    )
+
+
+def test_alternance_published_as_cdd_is_accepted(
+    authenticated_client: TestClient,
+) -> None:
+    profile = create_profile(authenticated_client)
+    offer_data = OFFER_DATA.copy()
+    offer_data.update(
+        {
+            "title": "Alternance administrateur réseaux",
+            "contract_type": "CDD - 12 mois",
+            "description": (
+                "Contrat d'apprentissage, débutant accepté. "
+                "Administration Linux, réseaux et sécurité."
+            ),
+            "source_url": "https://example.com/jobs/cdd-apprentissage",
+        }
+    )
+    offer = create_offer(authenticated_client, offer_data)
+
+    response = authenticated_client.post(
+        f"/matching/profile/{profile['id']}/offer/{offer['id']}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["details"]["contract_match"] is True
+    assert response.json()["decision"] != "rejected"
+
+
+def test_offer_requiring_more_than_two_years_is_rejected(
+    authenticated_client: TestClient,
+) -> None:
+    profile = create_profile(authenticated_client)
+    offer_data = OFFER_DATA.copy()
+    offer_data.update(
+        {
+            "title": "Alternance ingénieur DevOps",
+            "description": (
+                "Alternance DevOps avec Docker et Python. "
+                "Une expérience de 3 ans minimum est exigée."
+            ),
+            "source_url": "https://example.com/jobs/three-years-required",
+        }
+    )
+    offer = create_offer(authenticated_client, offer_data)
+
+    response = authenticated_client.post(
+        f"/matching/profile/{profile['id']}/offer/{offer['id']}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["decision"] == "rejected"
+    assert response.json()["details"]["experience_match"] is False
 
 
 def test_matching_handles_ile_de_france_department(
@@ -542,9 +629,11 @@ def test_recommendations_for_high_score() -> None:
         contract_match=True,
         location_match=True,
         education_match=True,
+        experience_match=True,
+        eligibility_reasons=[],
     )
 
-    assert decision == "recommended"
+    assert decision == "automatic_ready"
     assert priority == "high"
     assert any(
         "Candidature recommandée" in action
@@ -575,12 +664,14 @@ def test_recommendations_for_medium_score() -> None:
         contract_match=True,
         location_match=True,
         education_match=True,
+        experience_match=True,
+        eligibility_reasons=[],
     )
 
-    assert decision == "consider"
+    assert decision == "manual_review"
     assert priority == "medium"
     assert any(
-        "Candidature possible" in action
+        "examiner manuellement" in action
         for action in actions
     )
     assert any(
@@ -603,12 +694,17 @@ def test_recommendations_for_low_score() -> None:
         contract_match=False,
         location_match=False,
         education_match=False,
+        experience_match=False,
+        eligibility_reasons=[
+            "contrat autre qu’alternance ou stage",
+            "localisation hors Île-de-France",
+        ],
     )
 
-    assert decision == "skip"
-    assert priority == "low"
+    assert decision == "rejected"
+    assert priority == "blocked"
     assert any(
-        "Ne pas prioriser" in action
+        "Offre écartée" in action
         for action in actions
     )
     assert any(

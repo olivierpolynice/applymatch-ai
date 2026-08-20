@@ -133,7 +133,7 @@ def create_validation_queue_item(
         match_result_id,
     )
 
-    if match_result.decision == "skip":
+    if match_result.decision == "rejected":
         raise ValidationQueueError(
             (
                 "This match is not eligible for "

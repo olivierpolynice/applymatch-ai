@@ -121,7 +121,7 @@ def test_collection_creates_match_automatically(
     assert result is not None
     assert result.profile_id == profile.id
     assert result.score >= 70
-    assert result.decision != "skip"
+    assert result.decision == "automatic_ready"
 
     high_score_notification = db_session.scalar(
         select(Notification).where(

@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from datetime import datetime, timezone
 from typing import Any
 
 from app.models import CandidateProfile, JobOffer
@@ -33,6 +34,7 @@ SKILLS: dict[str, tuple[str, ...]] = {
     "devsecops": ("devsecops",),
     "docker": ("docker",),
     "fastapi": ("fastapi",),
+    "git": ("git", "github"),
     "gcp": (
         "gcp",
         "google cloud",
@@ -51,6 +53,7 @@ SKILLS: dict[str, tuple[str, ...]] = {
         "ai engineer",
     ),
     "jwt": ("jwt",),
+    "javascript": ("javascript", "node.js", "nodejs"),
     "kubernetes": (
         "kubernetes",
         "k8s",
@@ -87,11 +90,17 @@ SKILLS: dict[str, tuple[str, ...]] = {
     ),
     "prometheus": ("prometheus",),
     "python": ("python",),
+    "pytest": ("pytest",),
     "rbac": (
         "rbac",
         "role based access control",
     ),
     "react": ("react",),
+    "next.js": ("next.js", "nextjs"),
+    "sqlalchemy": ("sqlalchemy",),
+    "alembic": ("alembic",),
+    "sqlite": ("sqlite",),
+    "api rest": ("api rest", "rest api", "restful"),
     "security": (
         "security",
         "securite",
@@ -311,7 +320,7 @@ def calculate_skills_score(
     )
 
     score = round(
-        45
+        30
         * weighted_matches
         / len(offer_skills)
     )
@@ -417,27 +426,62 @@ def calculate_contract_match(
     profile: CandidateProfile,
     offer: JobOffer,
 ) -> bool:
-    profile_contract = normalize(
-        profile.target_contract
+    del profile
+    offer_text = normalize(
+        f"{offer.title} {offer.contract_type} {offer.description}"
     )
-    offer_contract = normalize(
-        offer.contract_type
+    allowed_markers = (
+        "alternance",
+        "alternant",
+        "apprentissage",
+        "apprenti",
+        "professionnalisation",
+        "stage",
+        "stagiaire",
+        "internship",
+        "intern ",
     )
+    return any(marker in offer_text for marker in allowed_markers)
 
-    if "alternance" in profile_contract:
-        return any(
-            contract in offer_contract
-            for contract in (
-                "alternance",
-                "apprentissage",
-                "professionnalisation",
-            )
+
+def calculate_experience_match(offer_text: str) -> bool:
+    normalized_offer = normalize(offer_text)
+    if any(
+        marker in normalized_offer
+        for marker in (
+            "debutant accepte",
+            "junior",
+            "sans experience",
+            "0 a 2 ans",
+            "0-2 ans",
         )
+    ):
+        return True
 
-    return (
-        profile_contract in offer_contract
-        or offer_contract in profile_contract
-    )
+    years = [
+        int(value)
+        for value in re.findall(
+            r"(?<!\d)(\d{1,2})\s*(?:ans?|annees?|years?)(?!\w)",
+            normalized_offer,
+        )
+    ]
+    return not years or min(years) <= 2
+
+
+def calculate_freshness_score(offer: JobOffer) -> int:
+    if offer.published_at is None:
+        return 3
+    published_at = offer.published_at
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    age_days = max(0, (datetime.now(timezone.utc) - published_at).days)
+    if age_days <= 7:
+        return 5
+    if age_days <= 21:
+        return 3
+    if age_days <= 45:
+        return 1
+    return 0
 
 
 def extract_french_departments(
@@ -462,6 +506,20 @@ def calculate_location_match(
 ) -> bool:
     profile_location = normalize(profile.location)
     offer_location = normalize(offer.location)
+    offer_text = normalize(
+        f"{offer.location} {offer.description}"
+    )
+
+    if any(
+        marker in offer_text
+        for marker in (
+            "teletravail complet",
+            "100% teletravail",
+            "full remote",
+            "remote france",
+        )
+    ):
+        return True
 
     profile_targets_ile_de_france = any(
         name in profile_location
@@ -589,9 +647,17 @@ def build_recommendations(
     contract_match: bool,
     location_match: bool,
     education_match: bool,
+    experience_match: bool,
+    eligibility_reasons: list[str],
 ) -> tuple[str, str, list[str]]:
-    if score >= 70:
-        decision = "recommended"
+    if eligibility_reasons:
+        decision = "rejected"
+        application_priority = "blocked"
+        actions = [
+            "Offre écartée : " + "; ".join(eligibility_reasons) + "."
+        ]
+    elif score >= 70:
+        decision = "automatic_ready"
         application_priority = "high"
         actions = [
             (
@@ -599,22 +665,13 @@ def build_recommendations(
                 "et préparer une candidature pour cette offre."
             )
         ]
-    elif score >= 50:
-        decision = "consider"
+    else:
+        decision = "manual_review"
         application_priority = "medium"
         actions = [
             (
-                "Candidature possible après adaptation du CV "
-                "et vérification des principaux écarts."
-            )
-        ]
-    else:
-        decision = "skip"
-        application_priority = "low"
-        actions = [
-            (
-                "Ne pas prioriser cette offre tant que les "
-                "principaux critères ne correspondent pas."
+                "Offre admissible à examiner manuellement : "
+                "le score est inférieur à 70/100."
             )
         ]
 
@@ -672,6 +729,11 @@ def build_recommendations(
             )
         )
 
+    if not experience_match:
+        actions.append(
+            "L’expérience demandée dépasse la cible de 0 à 2 ans."
+        )
+
     return (
         decision,
         application_priority,
@@ -684,8 +746,8 @@ def calculate(
     offer: JobOffer,
 ) -> dict[str, Any]:
     offer_text = (
-        f"{offer.title} "
-        f"{offer.description}"
+        f"{offer.title} {offer.contract_type} "
+        f"{offer.location} {offer.description}"
     )
 
     strong_skills, beginner_skills = (
@@ -734,14 +796,47 @@ def calculate(
     )
     education_score = 5 if education_match else 0
 
+    experience_match = calculate_experience_match(
+        offer_text
+    )
+    experience_score = 10 if experience_match else 0
+    freshness_score = calculate_freshness_score(offer)
+
+    eligibility_reasons: list[str] = []
+    if not contract_match:
+        eligibility_reasons.append(
+            "contrat autre qu’alternance ou stage"
+        )
+    if not location_match:
+        eligibility_reasons.append(
+            "localisation hors Île-de-France"
+        )
+    if not experience_match:
+        eligibility_reasons.append(
+            "expérience demandée supérieure à 2 ans"
+        )
+    if (
+        not role_match
+        and not matched_skills
+        and not skills_to_strengthen
+    ):
+        eligibility_reasons.append(
+            "aucun domaine ciblé ni technologie prouvée"
+        )
+
     score = min(
         100,
         skills_score
         + role_score
         + contract_score
         + location_score
-        + education_score,
+        + education_score
+        + experience_score
+        + freshness_score,
     )
+
+    if eligibility_reasons:
+        score = 0
 
     if score >= 85:
         recommendation = "Excellente compatibilité"
@@ -772,6 +867,8 @@ def calculate(
         contract_match=contract_match,
         location_match=location_match,
         education_match=education_match,
+        experience_match=experience_match,
+        eligibility_reasons=eligibility_reasons,
     )
 
     return {
@@ -791,8 +888,12 @@ def calculate(
         "contract_score": contract_score,
         "location_score": location_score,
         "education_score": education_score,
+        "experience_score": experience_score,
+        "freshness_score": freshness_score,
         "role_match": role_match,
         "contract_match": contract_match,
         "location_match": location_match,
         "education_match": education_match,
+        "experience_match": experience_match,
+        "eligibility_reasons": eligibility_reasons,
     }

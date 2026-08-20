@@ -90,7 +90,7 @@ describe("JobOffersPanel", () => {
     renderPanel();
 
     await user.click(
-      screen.getByRole("button", { name: "J’ai postulé" }),
+      screen.getByRole("button", { name: "Confirmer ma candidature" }),
     );
 
     await waitFor(() => {

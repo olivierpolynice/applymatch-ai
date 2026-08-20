@@ -12,17 +12,20 @@ profile:
 
 skills:
   cybersecurity: ["Sécurité des accès", "RBAC", "JWT", "Analyse de logs", "Détection d'incidents", "DevSecOps"]
-  cloud_devops: ["Docker", "GitHub Actions", "CI/CD", "Prometheus", "Grafana"]
-  systems_networks: ["Administration systèmes et réseaux", "Télécommunications", "networking", "security"]
-  development: ["Python", "FastAPI", "React", "Next.js", "TypeScript", "JavaScript", "SQL", "PostgreSQL", "SQLite", "Pytest", "Git", "GitHub"]
+  cloud_devops: ["Docker", "Docker Compose", "GitHub Actions", "CI/CD", "Prometheus", "Grafana"]
+  systems_networks: ["Linux", "Administration systèmes et réseaux", "Télécommunications", "networking", "TCP/IP", "security"]
+  development: ["Python", "FastAPI", "API REST", "React", "Next.js", "TypeScript", "JavaScript", "SQL", "PostgreSQL", "SQLite", "SQLAlchemy", "Alembic", "Pytest", "Git", "GitHub"]
+  artificial_intelligence: ["Intelligence artificielle", "Matching", "Scoring", "Génération contrôlée de documents"]
 
-target_domains: ["Cybersécurité", "Cloud", "DevSecOps", "Systèmes et réseaux"]
+target_domains: ["Cybersécurité", "Intelligence artificielle", "Cloud", "DevSecOps", "Systèmes et réseaux"]
 target_roles:
   - "Alternant cybersécurité"
   - "Alternant administrateur systèmes et réseaux"
   - "Alternant ingénieur cloud"
   - "Alternant DevSecOps"
   - "Alternant Network & Security Administrator"
+  - "Alternant développeur intelligence artificielle"
+  - "Stagiaire cybersécurité, cloud, réseaux, DevSecOps ou IA"
 
 location:
   preferred: ["Île-de-France", "Paris"]
@@ -30,7 +33,7 @@ location:
   mobility: "Île-de-France"
 
 availability:
-  contract_type: "Alternance"
+  contract_type: "Alternance ou stage"
   start_date: "2026-09"
   work_study_schedule: "4 jours en entreprise"
   status: "Disponible"
@@ -39,9 +42,9 @@ ats_keywords: ["alternance", "cybersécurité", "sécurité informatique", "clou
 
 preferences:
   manual_application_approval_required: true
-  automatic_application_allowed: false
+  automatic_application_allowed: true
   active: true
 
 metadata:
-  updated_at: "2026-08-11"
+  updated_at: "2026-08-20"
   language: "fr"

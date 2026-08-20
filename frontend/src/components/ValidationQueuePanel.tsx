@@ -524,17 +524,19 @@ export default function ValidationQueuePanel({
                         <div className="mt-4 border-t border-slate-800 pt-4">
                           {existingDraft ? (
                             <div className="rounded-lg border border-emerald-900 bg-emerald-950/40 p-3 text-sm text-emerald-300">
-                              Le brouillon version{" "}
+                              Le dossier version{" "}
                               {existingDraft.version} est
                               disponible dans la section
-                              « Brouillons de candidature ».
+                              « Documents de candidature ».
+                              Utilise ensuite « Voir et postuler »,
+                              puis « Confirmer que j’ai postulé ».
                             </div>
                           ) : (
                             <>
                               <p className="text-sm text-emerald-300">
                                 Cette candidature est
-                                approuvée. Tu peux maintenant
-                                générer ses documents.
+                                approuvée. Prépare maintenant
+                                le CV, la lettre et le message.
                               </p>
 
                               <button
@@ -552,7 +554,7 @@ export default function ValidationQueuePanel({
                               >
                                 {isThisDraftGenerating
                                   ? "Génération..."
-                                  : "Générer le brouillon"}
+                                  : "Préparer les documents"}
                               </button>
                             </>
                           )}
@@ -570,9 +572,9 @@ export default function ValidationQueuePanel({
                           )}
 
                           <p className="mt-3 text-xs text-amber-300">
-                            La génération prépare uniquement
-                            les textes. Aucun document n’est
-                            envoyé automatiquement.
+                            La préparation ne confirme aucun
+                            envoi. Après avoir postulé, utilise
+                            le bouton de confirmation.
                           </p>
                         </div>
                       )}

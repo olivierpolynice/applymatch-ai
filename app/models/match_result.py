@@ -78,6 +78,8 @@ class MatchResult(Base):
     contract_score: Mapped[int]
     location_score: Mapped[int]
     education_score: Mapped[int] = mapped_column(default=0)
+    experience_score: Mapped[int] = mapped_column(default=0)
+    freshness_score: Mapped[int] = mapped_column(default=0)
 
     role_match: Mapped[bool] = mapped_column(Boolean)
     contract_match: Mapped[bool] = mapped_column(Boolean)
@@ -85,6 +87,14 @@ class MatchResult(Base):
     education_match: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
+    )
+    experience_match: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+    )
+    eligibility_reasons: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
     )
 
     created_at: Mapped[datetime] = mapped_column(

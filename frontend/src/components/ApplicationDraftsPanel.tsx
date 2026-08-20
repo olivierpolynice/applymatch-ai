@@ -114,13 +114,12 @@ export default function ApplicationDraftsPanel({
           </p>
 
           <h2 className="mt-2 text-2xl font-bold">
-            Brouillons de candidature
+            Documents de candidature
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm text-slate-400">
-            Vérifie et adapte chaque document. L’envoi automatique n’est
-            autorisé que si toutes les conditions sont remplies et si un
-            connecteur externe confirme réellement l’envoi.
+            Vérifie les documents, ouvre l’offre pour postuler, puis confirme
+            l’envoi afin de déplacer l’offre dans « Déjà postulé ».
           </p>
         </div>
 
@@ -304,6 +303,32 @@ function DraftCard({
       ),
   });
 
+  const markAppliedMutation = useMutation({
+    mutationFn: () =>
+      apiRequest<JobOffer>(
+        `/job-offers/${draft.offer_id}/mark-applied`,
+        {
+          method: "POST",
+        },
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["job-offers"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["application-drafts"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["application-archives"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["validation-queue"],
+        }),
+      ]);
+    },
+  });
+
   const hasChanges =
     coverLetter !== draft.cover_letter ||
     shortMessage !== draft.short_message ||
@@ -318,6 +343,16 @@ function DraftCard({
 
     if (confirmed) {
       regenerateMutation.mutate();
+    }
+  };
+
+  const handleMarkApplied = () => {
+    const confirmed = window.confirm(
+      "Confirmer que la candidature a réellement été envoyée à l’entreprise ?",
+    );
+
+    if (confirmed) {
+      markAppliedMutation.mutate();
     }
   };
 
@@ -467,6 +502,21 @@ function DraftCard({
         </p>
       )}
 
+      {markAppliedMutation.isError && (
+        <p className="mt-4 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
+          Impossible d’archiver la candidature :{" "}
+          {markAppliedMutation.error instanceof Error
+            ? markAppliedMutation.error.message
+            : "erreur inconnue"}
+        </p>
+      )}
+
+      {markAppliedMutation.isSuccess && (
+        <p className="mt-4 rounded-lg border border-emerald-900 bg-emerald-950/40 p-3 text-sm text-emerald-300">
+          Candidature confirmée et déplacée dans « Déjà postulé ».
+        </p>
+      )}
+
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
@@ -499,6 +549,47 @@ function DraftCard({
             : "Régénérer une nouvelle version"}
         </button>
       </div>
+
+      {draft.status !== "archived" ? (
+        <div className="mt-6 rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
+          <h4 className="font-semibold text-cyan-100">
+            Étape finale : envoyer la candidature
+          </h4>
+          <p className="mt-1 text-sm text-cyan-200">
+            Ouvre l’offre, effectue l’envoi sur le site, puis confirme-le ici.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {offer?.source_url ? (
+              <a
+                href={offer.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-cyan-700 bg-slate-950 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-950"
+              >
+                Voir et postuler
+              </a>
+            ) : (
+              <span className="rounded-lg border border-amber-800 bg-amber-950/40 px-4 py-2 text-sm text-amber-300">
+                Lien de candidature indisponible
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleMarkApplied}
+              disabled={markAppliedMutation.isPending}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {markAppliedMutation.isPending
+                ? "Confirmation..."
+                : "Confirmer que j’ai postulé"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-6 rounded-lg border border-slate-700 bg-slate-900 p-4 text-sm text-slate-300">
+          Cette candidature est déjà classée dans « Déjà postulé ».
+        </p>
+      )}
 
       <div className="mt-6 rounded-xl border border-slate-700 bg-slate-900 p-4">
         <h4 className="font-semibold text-slate-100">
