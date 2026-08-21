@@ -147,6 +147,11 @@ def archive_confirmed_application(
     )
     offer.status = "applied"
     offer.applied_at = archive.sent_at
+    offer.application_channel = channel
+    offer.application_status = "sent"
+    offer.provider_confirmation_id = (
+        provider_confirmation_id.strip()
+    )
     draft.status = "archived"
     db.add(archive)
 

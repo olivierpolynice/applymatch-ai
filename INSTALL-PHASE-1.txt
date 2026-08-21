@@ -1,0 +1,52 @@
+APPLYMATCH V3 - PHASE 1
+
+Cette archive consolide la base sans activer le nouvel algorithme de filtrage.
+
+INSTALLATION POWERSHELL
+
+1. Depuis C:\DevOps\applymatch-ai, decompresser l'archive avec -Force.
+2. Activer Python 3.11 :
+
+   .\.venv\Scripts\Activate.ps1
+   python --version
+
+   Le resultat doit commencer par Python 3.11.
+
+3. Appliquer la migration :
+
+   python -m alembic upgrade head
+   python -m alembic current
+
+   La revision courante doit etre f3a91d6c2e74 (head).
+
+4. Executer tous les tests :
+
+   python -m pytest tests -q
+
+5. En cas de succes :
+
+   git add .
+   git commit -m "phase 1 consolidate database lifecycle"
+   git push origin HEAD
+
+CHAMPS AJOUTES A JOB_OFFERS
+
+- expires_at
+- external_id
+- experience_min
+- experience_max
+- application_channel
+- application_status
+- provider_confirmation_id
+
+CHAMPS DEJA PRESENTS ET CONSERVES
+
+- published_at
+- source
+- source_url
+- applied_at
+
+IMPORTANT
+
+Ne pas lancer alembic downgrade. La sauvegarde Phase 0 reste le point de
+restauration en cas de probleme.

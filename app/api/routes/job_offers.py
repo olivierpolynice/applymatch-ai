@@ -193,6 +193,11 @@ def mark_job_offer_as_applied(
 
     offer.status = "applied"
     offer.applied_at = datetime.now(timezone.utc)
+    offer.application_channel = "manual"
+    offer.application_status = "sent"
+    offer.provider_confirmation_id = (
+        f"manual-{offer.id}-{offer.applied_at.isoformat()}"
+    )
 
     db.commit()
     db.refresh(offer)

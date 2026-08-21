@@ -34,6 +34,8 @@ def test_csp_collector() -> None:
     assert len(offers) == 1
     assert offers[0].company == "Ministère"
     assert len(offers[0].description) >= 20
+    assert offers[0].published_at is not None
+    assert offers[0].published_at.utcoffset() is not None
 
 
 def test_emploi_territorial_collector(monkeypatch) -> None:

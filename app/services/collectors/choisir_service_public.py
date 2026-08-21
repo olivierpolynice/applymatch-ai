@@ -1,5 +1,6 @@
 import csv
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -18,11 +19,19 @@ CSP_RESOURCE_URL = (
     "867034a2-2fa1-41b4-bd39-c84691ea618f"
 )
 MAX_RESULTS = 200
+PARIS_TIMEZONE = ZoneInfo("Europe/Paris")
 
 
 def _parse_date(value: str) -> datetime | None:
     try:
-        return datetime.strptime(value.strip(), "%d/%m/%Y")
+        parsed_date = datetime.strptime(
+            value.strip(),
+            "%d/%m/%Y",
+        )
+
+        return parsed_date.replace(
+            tzinfo=PARIS_TIMEZONE,
+        )
     except (TypeError, ValueError):
         return None
 

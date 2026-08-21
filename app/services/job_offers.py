@@ -14,6 +14,9 @@ DUPLICATE_URL_MESSAGE = (
     "A job offer with this source URL already exists"
 )
 DUPLICATE_OFFER_MESSAGE = "This job offer already exists"
+DUPLICATE_EXTERNAL_ID_MESSAGE = (
+    "A job offer with this source and external ID already exists"
+)
 
 
 class DuplicateJobOfferError(RuntimeError):
@@ -52,6 +55,20 @@ def create_job_offer(
 ) -> JobOffer:
     offer_data = data.model_dump()
     source_url = offer_data.get("source_url")
+    external_id = offer_data.get("external_id")
+
+    if external_id is not None:
+        existing_external_id = db.scalar(
+            select(JobOffer).where(
+                JobOffer.source == offer_data["source"],
+                JobOffer.external_id == external_id,
+            )
+        )
+
+        if existing_external_id is not None:
+            raise DuplicateJobOfferError(
+                DUPLICATE_EXTERNAL_ID_MESSAGE
+            )
 
     if source_url is not None:
         source_url = str(source_url)

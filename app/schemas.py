@@ -6,6 +6,8 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    field_validator,
+    model_validator,
 )
 
 
@@ -140,6 +142,23 @@ OfferStatus = Literal[
     "archived",
 ]
 
+ApplicationChannel = Literal[
+    "official_api",
+    "recruitment_email",
+    "authorized_form",
+    "manual",
+    "unsupported",
+]
+
+ApplicationStatus = Literal[
+    "not_started",
+    "documents_ready",
+    "manual_required",
+    "pending_confirmation",
+    "sent",
+    "failed",
+]
+
 
 class JobOfferCreate(BaseModel):
     title: str = Field(
@@ -165,8 +184,64 @@ class JobOfferCreate(BaseModel):
         min_length=1,
         max_length=100,
     )
+    external_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
     source_url: HttpUrl | None = None
     published_at: datetime | None = None
+    expires_at: datetime | None = None
+    experience_min: int | None = Field(
+        default=None,
+        ge=0,
+        le=50,
+    )
+    experience_max: int | None = Field(
+        default=None,
+        ge=0,
+        le=50,
+    )
+    application_channel: ApplicationChannel | None = None
+    application_status: ApplicationStatus = "not_started"
+    provider_confirmation_id: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=255,
+    )
+
+    @field_validator("published_at", "expires_at")
+    @classmethod
+    def require_timezone(
+        cls,
+        value: datetime | None,
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("La date doit contenir un fuseau horaire")
+
+        return value
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "JobOfferCreate":
+        if (
+            self.experience_min is not None
+            and self.experience_max is not None
+            and self.experience_min > self.experience_max
+        ):
+            raise ValueError(
+                "experience_min ne peut pas dépasser experience_max"
+            )
+
+        if (
+            self.published_at is not None
+            and self.expires_at is not None
+            and self.expires_at <= self.published_at
+        ):
+            raise ValueError(
+                "expires_at doit être postérieure à published_at"
+            )
+
+        return self
 
 
 class JobOfferUpdate(BaseModel):
@@ -181,9 +256,16 @@ class JobOfferRead(ORMModel):
     contract_type: str
     description: str
     source: str
+    external_id: str | None
     source_url: str | None
     status: str
     published_at: datetime | None
+    expires_at: datetime | None
+    experience_min: int | None
+    experience_max: int | None
+    application_channel: str | None
+    application_status: str
+    provider_confirmation_id: str | None
     applied_at: datetime | None
     created_at: datetime
     updated_at: datetime
