@@ -54,6 +54,7 @@ function renderPanel() {
     <QueryClientProvider client={queryClient}>
       <JobOffersPanel
         offers={[activeOffer, appliedOffer]}
+        priorityOffers={[activeOffer]}
         results={[]}
         profileId={1}
       />

@@ -32,9 +32,16 @@ export interface JobOffer {
   contract_type: string;
   description: string;
   source: string;
+  external_id?: string | null;
   source_url: string | null;
   status: JobOfferStatus;
   published_at: string | null;
+  expires_at?: string | null;
+  experience_min?: number | null;
+  experience_max?: number | null;
+  application_channel?: string | null;
+  application_status?: string;
+  provider_confirmation_id?: string | null;
   applied_at: string | null;
   created_at: string;
   updated_at: string;

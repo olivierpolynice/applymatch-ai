@@ -1,0 +1,49 @@
+APPLYMATCH V3 - PHASE 2 : FILTRE PRIORITAIRE
+
+REGLES ACTIVEES
+
+- publication datant de 24 heures maximum ;
+- alternance, apprentissage, professionnalisation ou stage uniquement ;
+- CDI, CDD, interim et freelance exclus ;
+- experience comprise entre 0 et 2 ans ;
+- date inconnue ou experience inconnue : non affichee en priorite ;
+- offre expiree : non affichee ;
+- dates normalisees en UTC ;
+- archives et candidatures envoyees conservees.
+
+INSTALLATION
+
+1. Decompresser l'archive dans C:\DevOps\applymatch-ai avec remplacement.
+
+2. Activer l'environnement et installer la nouvelle dependance :
+
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -r requirements.txt
+
+3. Aucune migration Alembic n'est necessaire pour cette phase.
+
+4. Tester le nouveau filtre :
+
+   python -m pytest tests\test_priority_filter.py -q
+
+5. Tester tout le backend :
+
+   python -m pytest tests -q
+
+6. Tester le frontend :
+
+   cd frontend
+   npm test -- --run
+   npm run build
+
+7. Ne faire le commit qu'apres tous les tests :
+
+   cd ..
+   git add .
+   git commit -m "phase 2 add strict priority filter"
+   git push origin HEAD
+
+API
+
+GET /job-offers retourne toujours toutes les offres pour l'historique.
+GET /job-offers?priority_only=true retourne uniquement les offres eligibles.

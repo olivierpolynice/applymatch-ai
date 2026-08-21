@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import (
@@ -219,7 +219,11 @@ class JobOfferCreate(BaseModel):
         if value is not None and value.tzinfo is None:
             raise ValueError("La date doit contenir un fuseau horaire")
 
-        return value
+        return (
+            value.astimezone(timezone.utc)
+            if value is not None
+            else None
+        )
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "JobOfferCreate":

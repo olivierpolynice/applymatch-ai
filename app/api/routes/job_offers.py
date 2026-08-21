@@ -27,6 +27,9 @@ from app.services.job_offers import (
 from app.services.application_automation import (
     archive_confirmed_application,
 )
+from app.services.priority_filter import (
+    evaluate_priority_offer,
+)
 
 
 router = APIRouter(
@@ -83,6 +86,9 @@ def list_job_offers(
         default=None,
         alias="status",
     ),
+    priority_only: bool = Query(
+        default=False,
+    ),
     db: Session = Depends(get_db),
 ) -> list[JobOffer]:
     statement = select(JobOffer).order_by(
@@ -94,7 +100,16 @@ def list_job_offers(
             JobOffer.status == status_filter,
         )
 
-    return list(db.scalars(statement))
+    offers = list(db.scalars(statement))
+
+    if priority_only:
+        return [
+            offer
+            for offer in offers
+            if evaluate_priority_offer(offer).eligible
+        ]
+
+    return offers
 
 
 @router.get(

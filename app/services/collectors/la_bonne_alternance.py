@@ -157,15 +157,11 @@ def get_published_at(
     publication = offer.get("publication") or {}
     creation = publication.get("creation")
 
-    if not isinstance(creation, str) or not creation:
-        return None
+    from app.services.priority_filter import (
+        parse_platform_datetime,
+    )
 
-    try:
-        return datetime.fromisoformat(
-            creation.replace("Z", "+00:00")
-        )
-    except ValueError:
-        return None
+    return parse_platform_datetime(creation)
 
 
 def transform_offer(

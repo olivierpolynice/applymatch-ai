@@ -8,6 +8,7 @@ import type { JobOffer, MatchResult } from "@/types";
 
 interface JobOffersPanelProps {
   offers: JobOffer[];
+  priorityOffers: JobOffer[];
   results: MatchResult[];
   profileId: number;
 }
@@ -21,6 +22,7 @@ type OfferSection = "new" | "manual" | "priority" | "rejected";
 
 export default function JobOffersPanel({
   offers,
+  priorityOffers,
   results,
   profileId,
 }: JobOffersPanelProps) {
@@ -36,6 +38,11 @@ export default function JobOffersPanel({
     [results],
   );
 
+  const priorityOfferIds = useMemo(
+    () => new Set(priorityOffers.map((offer) => offer.id)),
+    [priorityOffers],
+  );
+
   const sectionOffers = useMemo(() => {
     return offers.filter((offer) => {
       if (offer.status === "applied" || offer.status === "archived") {
@@ -44,6 +51,9 @@ export default function JobOffersPanel({
       const matching = resultsByOfferId.get(offer.id);
       if (section === "rejected") {
         return offer.status === "rejected" || matching?.decision === "rejected";
+      }
+      if (!priorityOfferIds.has(offer.id)) {
+        return false;
       }
       if (offer.status === "rejected" || matching?.decision === "rejected") {
         return false;
@@ -56,14 +66,22 @@ export default function JobOffersPanel({
       }
       return matching === undefined;
     });
-  }, [offers, resultsByOfferId, section]);
+  }, [offers, priorityOfferIds, resultsByOfferId, section]);
 
   const sectionCounts = {
     new: offers.filter((offer) =>
-      offer.status === "new" && !resultsByOfferId.has(offer.id),
+      priorityOfferIds.has(offer.id) &&
+      offer.status === "new" &&
+      !resultsByOfferId.has(offer.id),
     ).length,
-    manual: results.filter((result) => result.decision === "manual_review").length,
-    priority: results.filter((result) => result.decision === "automatic_ready").length,
+    manual: results.filter((result) =>
+      priorityOfferIds.has(result.offer_id) &&
+      result.decision === "manual_review",
+    ).length,
+    priority: results.filter((result) =>
+      priorityOfferIds.has(result.offer_id) &&
+      result.decision === "automatic_ready",
+    ).length,
     rejected: offers.filter((offer) =>
       offer.status === "rejected" ||
       resultsByOfferId.get(offer.id)?.decision === "rejected",

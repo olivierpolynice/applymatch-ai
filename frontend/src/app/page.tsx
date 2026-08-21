@@ -45,6 +45,14 @@ export default function Home() {
       apiRequest<JobOffer[]>("/job-offers"),
   });
 
+  const priorityOffersQuery = useQuery({
+    queryKey: ["job-offers", "priority"],
+    queryFn: () =>
+      apiRequest<JobOffer[]>(
+        "/job-offers?priority_only=true",
+      ),
+  });
+
   const archivesQuery = useQuery({
     queryKey: ["application-archives"],
     queryFn: () =>
@@ -75,7 +83,7 @@ export default function Home() {
   );
 
   const activeOfferIds = new Set(
-    (offersQuery.data ?? [])
+    (priorityOffersQuery.data ?? [])
       .filter(
         (offer) =>
           offer.status !== "applied" &&
@@ -88,12 +96,14 @@ export default function Home() {
   const isLoading =
     profilesQuery.isLoading ||
     offersQuery.isLoading ||
+    priorityOffersQuery.isLoading ||
     (activeProfile !== undefined &&
       resultsQuery.isLoading);
 
   const error =
     profilesQuery.error ??
     offersQuery.error ??
+    priorityOffersQuery.error ??
     resultsQuery.error;
 
   return (
@@ -172,9 +182,12 @@ export default function Home() {
 
           {activeProfile &&
             !offersQuery.isLoading &&
-            !offersQuery.error && (
+            !offersQuery.error &&
+            !priorityOffersQuery.isLoading &&
+            !priorityOffersQuery.error && (
               <JobOffersPanel
                 offers={offersQuery.data ?? []}
+                priorityOffers={priorityOffersQuery.data ?? []}
                 results={resultsQuery.data ?? []}
                 profileId={activeProfile.id}
               />

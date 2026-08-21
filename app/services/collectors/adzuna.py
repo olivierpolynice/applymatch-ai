@@ -11,6 +11,9 @@ from app.services.collectors.la_bonne_alternance import (
     TARGET_KEYWORDS,
     normalize_text,
 )
+from app.services.priority_filter import (
+    parse_platform_datetime,
+)
 
 
 SEARCH_URL = (
@@ -24,15 +27,7 @@ SEARCH_QUERIES = (
 
 
 def parse_datetime(value: object) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-
-    try:
-        return datetime.fromisoformat(
-            value.replace("Z", "+00:00"),
-        )
-    except ValueError:
-        return None
+    return parse_platform_datetime(value)
 
 
 def is_relevant_offer(raw_offer: dict[str, Any]) -> bool:

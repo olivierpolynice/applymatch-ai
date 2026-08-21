@@ -7,6 +7,9 @@ from app.services.collectors.la_bonne_alternance import (
     TARGET_KEYWORDS,
     normalize_text,
 )
+from app.services.priority_filter import (
+    parse_platform_datetime,
+)
 
 
 ALTERNANCE_KEYWORDS = {
@@ -46,14 +49,7 @@ def is_target_offer(*values: Any) -> bool:
 
 
 def parse_datetime(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        return datetime.fromisoformat(
-            value.strip().replace("Z", "+00:00")
-        )
-    except ValueError:
-        return None
+    return parse_platform_datetime(value)
 
 
 def comma_separated_environment(value: str | None) -> list[str]:
