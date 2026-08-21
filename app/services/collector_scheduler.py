@@ -1,26 +1,22 @@
-import asyncio
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.db.session import SessionLocal
-from app.services.collector_runs import (
-    execute_all_collector_runs,
-)
+from app.services.collector_runs import execute_all_collector_runs
 from app.services.offer_importer import ImportResult
 
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INTERVAL_MINUTES = 240
+DEFAULT_INTERVAL_MINUTES = 15
 MINIMUM_INTERVAL_MINUTES = 1
+SCHEDULED_JOB_ID = "applymatch-offer-collection"
 
-TRUE_VALUES = {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 @dataclass(frozen=True)
@@ -33,30 +29,18 @@ class CollectorSchedulerSettings:
     def from_environment(
         cls,
     ) -> "CollectorSchedulerSettings":
-        enabled = parse_boolean_environment(
-            "COLLECTOR_SCHEDULER_ENABLED",
-            default=False,
-        )
-        run_on_startup = parse_boolean_environment(
-            "COLLECTOR_RUN_ON_STARTUP",
-            default=False,
-        )
-        interval_minutes = parse_interval_minutes(
-            os.getenv(
-                "COLLECTOR_INTERVAL_MINUTES"
-            ),
-        )
-
         return cls(
-            enabled=enabled,
-            interval_minutes=interval_minutes,
-            run_on_startup=run_on_startup,
-        )
-
-    @property
-    def interval_seconds(self) -> float:
-        return float(
-            self.interval_minutes * 60
+            enabled=parse_boolean_environment(
+                "COLLECTOR_SCHEDULER_ENABLED",
+                default=False,
+            ),
+            interval_minutes=parse_interval_minutes(
+                os.getenv("COLLECTOR_INTERVAL_MINUTES")
+            ),
+            run_on_startup=parse_boolean_environment(
+                "COLLECTOR_RUN_ON_STARTUP",
+                default=False,
+            ),
         )
 
 
@@ -70,15 +54,10 @@ def parse_boolean_environment(
     if raw_value is None:
         return default
 
-    return (
-        raw_value.strip().casefold()
-        in TRUE_VALUES
-    )
+    return raw_value.strip().casefold() in TRUE_VALUES
 
 
-def parse_interval_minutes(
-    raw_value: str | None,
-) -> int:
+def parse_interval_minutes(raw_value: str | None) -> int:
     if raw_value is None:
         return DEFAULT_INTERVAL_MINUTES
 
@@ -86,137 +65,86 @@ def parse_interval_minutes(
         interval = int(raw_value)
     except ValueError:
         logger.warning(
-            (
-                "Invalid "
-                "COLLECTOR_INTERVAL_MINUTES=%r. "
-                "Using the default value: "
-                "%s minutes."
-            ),
+            "Invalid COLLECTOR_INTERVAL_MINUTES=%r; using %s.",
             raw_value,
             DEFAULT_INTERVAL_MINUTES,
         )
-
         return DEFAULT_INTERVAL_MINUTES
 
-    if interval < MINIMUM_INTERVAL_MINUTES:
-        logger.warning(
-            (
-                "COLLECTOR_INTERVAL_MINUTES "
-                "must be at least %s. "
-                "Using %s minute."
-            ),
-            MINIMUM_INTERVAL_MINUTES,
-            MINIMUM_INTERVAL_MINUTES,
-        )
-
-        return MINIMUM_INTERVAL_MINUTES
-
-    return interval
+    return max(interval, MINIMUM_INTERVAL_MINUTES)
 
 
 def execute_scheduled_collection() -> ImportResult:
     with SessionLocal() as db:
-        result = execute_all_collector_runs(
+        return execute_all_collector_runs(
             db,
             trigger="scheduled",
         )
 
-    return result
 
-
-async def run_collection_once() -> ImportResult | None:
+def run_collection_once() -> ImportResult | None:
     try:
-        result = await asyncio.to_thread(
-            execute_scheduled_collection,
-        )
+        result = execute_scheduled_collection()
     except Exception:
-        logger.exception(
-            (
-                "Unexpected scheduled "
-                "collection error."
-            )
-        )
-
+        logger.exception("Unexpected scheduled collection error.")
         return None
 
     logger.info(
-        (
-            "Scheduled collection completed: "
-            "found=%s added=%s "
-            "duplicates=%s errors=%s"
-        ),
+        "Scheduled collection completed: found=%s added=%s "
+        "duplicates=%s errors=%s",
         result.found,
         result.added,
         result.duplicates,
         result.errors,
     )
-
     return result
 
 
-async def collector_scheduler_loop(
-    settings: CollectorSchedulerSettings,
-) -> None:
-    logger.info(
-        (
-            "Collector scheduler started: "
-            "interval=%s minute(s), "
-            "run_on_startup=%s"
-        ),
-        settings.interval_minutes,
-        settings.run_on_startup,
-    )
-
-    if settings.run_on_startup:
-        await run_collection_once()
-
-    while True:
-        await asyncio.sleep(
-            settings.interval_seconds,
-        )
-
-        await run_collection_once()
-
-
 def start_collector_scheduler(
-    settings: (
-        CollectorSchedulerSettings | None
-    ) = None,
-) -> asyncio.Task[None] | None:
+    settings: CollectorSchedulerSettings | None = None,
+) -> AsyncIOScheduler | None:
     scheduler_settings = (
-        settings
-        or CollectorSchedulerSettings
-        .from_environment()
+        settings or CollectorSchedulerSettings.from_environment()
     )
 
     if not scheduler_settings.enabled:
-        logger.info(
-            "Collector scheduler is disabled."
-        )
-
+        logger.info("Collector scheduler is disabled.")
         return None
 
-    return asyncio.create_task(
-        collector_scheduler_loop(
-            scheduler_settings,
-        ),
-        name=(
-            "multi-source-collector-scheduler"
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(
+        run_collection_once,
+        trigger="interval",
+        minutes=scheduler_settings.interval_minutes,
+        id=SCHEDULED_JOB_ID,
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+        next_run_time=(
+            datetime.now(timezone.utc)
+            if scheduler_settings.run_on_startup
+            else datetime.now(timezone.utc)
+            + timedelta(
+                minutes=scheduler_settings.interval_minutes
+            )
         ),
     )
+    scheduler.start()
+    logger.info(
+        "Collector scheduler started: interval=%s minute(s), "
+        "run_on_startup=%s",
+        scheduler_settings.interval_minutes,
+        scheduler_settings.run_on_startup,
+    )
+    return scheduler
 
 
 async def stop_collector_scheduler(
-    task: asyncio.Task[None] | None,
+    scheduler: AsyncIOScheduler | None,
 ) -> None:
-    if task is None:
+    if scheduler is None:
         return
 
-    task.cancel()
-
-    try:
-        await task
-    except asyncio.CancelledError:
-        logger.info(
-            "Collector scheduler stopped."
-        )
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+        logger.info("Collector scheduler stopped.")

@@ -26,6 +26,15 @@ TEST_JWT_SECRET = (
     "with-at-least-32-characters"
 )
 
+
+@pytest.fixture(autouse=True)
+def disable_external_automation_during_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("COLLECTOR_SCHEDULER_ENABLED", "false")
+    monkeypatch.setenv("COLLECTOR_RUN_ON_STARTUP", "false")
+    monkeypatch.setenv("AI_TEXT_GENERATION_ENABLED", "false")
+
 test_engine = create_engine(
     TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},

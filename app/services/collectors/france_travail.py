@@ -12,6 +12,7 @@ from app.services.collectors.la_bonne_alternance import (
     normalize_text,
 )
 from app.services.priority_filter import (
+    extract_experience_range,
     parse_platform_datetime,
 )
 
@@ -24,9 +25,20 @@ SEARCH_URL = (
     "https://api.francetravail.io/partenaire/"
     "offresdemploi/v2/offres/search"
 )
-SEARCH_TERMS = (
-    "alternance cybersécurité cloud réseau "
-    "devsecops intelligence artificielle"
+SEARCH_QUERIES = (
+    "alternance cybersécurité cloud",
+    "alternance réseau devsecops",
+    "alternance intelligence artificielle stage informatique",
+)
+ILE_DE_FRANCE_DEPARTMENTS = (
+    "75",
+    "77",
+    "78",
+    "91",
+    "92",
+    "93",
+    "94",
+    "95",
 )
 
 
@@ -54,6 +66,9 @@ def is_relevant_offer(raw_offer: dict[str, Any]) -> bool:
             "alternance",
             "apprentissage",
             "professionnalisation",
+            "stage",
+            "stagiaire",
+            "internship",
         )
     )
     is_targeted = any(
@@ -70,6 +85,45 @@ def transform_offer(
     company = raw_offer.get("entreprise") or {}
     workplace = raw_offer.get("lieuTravail") or {}
     origin = raw_offer.get("origineOffre") or {}
+    description = str(
+        raw_offer.get("description")
+        or "Description indisponible pour cette offre."
+    ).strip()
+    experience_min, experience_max = extract_experience_range(
+        description
+    )
+    raw_contract = str(
+        raw_offer.get("typeContratLibelle") or ""
+    ).strip()
+    normalized_contract_text = normalize_text(
+        f"{raw_contract} {description}"
+    )
+    contract_type = raw_contract or "Alternance"
+    if any(
+        marker in normalized_contract_text
+        for marker in ("stage", "stagiaire", "internship")
+    ):
+        contract_type = "Stage"
+    elif any(
+        marker in normalized_contract_text
+        for marker in (
+            "alternance",
+            "apprentissage",
+            "professionnalisation",
+        )
+    ):
+        contract_type = "Alternance"
+    external_id = str(raw_offer.get("id") or "").strip() or None
+    source_url = (
+        origin.get("urlOrigine")
+        or raw_offer.get("urlPostulation")
+        or (
+            "https://candidat.francetravail.fr/offres/"
+            f"recherche/detail/{external_id}"
+            if external_id
+            else None
+        )
+    )
 
     return JobOfferCreate(
         title=str(
@@ -84,22 +138,17 @@ def transform_offer(
             workplace.get("libelle")
             or "Île-de-France"
         ).strip(),
-        contract_type=str(
-            raw_offer.get("typeContratLibelle")
-            or "Alternance"
-        ).strip(),
-        description=str(
-            raw_offer.get("description")
-            or "Description indisponible pour cette offre."
-        ).strip(),
+        contract_type=contract_type,
+        description=description,
         source="France Travail",
-        source_url=(
-            origin.get("urlOrigine")
-            or raw_offer.get("urlPostulation")
-        ),
+        external_id=external_id,
+        source_url=source_url,
         published_at=parse_datetime(
             raw_offer.get("dateCreation"),
         ),
+        experience_min=experience_min,
+        experience_max=experience_max,
+        application_channel="official_api",
     )
 
 
@@ -161,37 +210,50 @@ class FranceTravailCollector:
 
     def collect(self) -> list[JobOfferCreate]:
         token = self.get_access_token()
+        collected: dict[str, dict[str, Any]] = {}
 
-        try:
-            response = self.client.get(
-                SEARCH_URL,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Accept": "application/json",
-                },
-                params={
-                    "motsCles": SEARCH_TERMS,
-                    "range": "0-99",
-                },
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as error:
-            raise CollectorAPIError(
-                "France Travail API request failed"
-            ) from error
+        for department in ILE_DE_FRANCE_DEPARTMENTS:
+            for query in SEARCH_QUERIES:
+                try:
+                    response = self.client.get(
+                        SEARCH_URL,
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Accept": "application/json",
+                        },
+                        params={
+                            "motsCles": query,
+                            "departement": department,
+                            "range": "0-49",
+                        },
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPError as error:
+                    raise CollectorAPIError(
+                        "France Travail API request failed"
+                    ) from error
 
-        results = response.json().get("resultats")
+                results = response.json().get("resultats")
 
-        if not isinstance(results, list):
-            raise CollectorAPIError(
-                "Invalid France Travail response"
-            )
+                if not isinstance(results, list):
+                    raise CollectorAPIError(
+                        "Invalid France Travail response"
+                    )
+
+                for item in results:
+                    if not isinstance(item, dict):
+                        continue
+                    identifier = str(
+                        item.get("id")
+                        or item.get("urlPostulation")
+                        or len(collected)
+                    )
+                    collected[identifier] = item
 
         return [
             transform_offer(item)
-            for item in results
-            if isinstance(item, dict)
-            and is_relevant_offer(item)
+            for item in collected.values()
+            if is_relevant_offer(item)
         ]
 
     def close(self) -> None:

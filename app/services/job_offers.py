@@ -36,12 +36,22 @@ def build_offer_fingerprint(
     title: str,
     company: str,
     location: str,
+    source: str = "",
+    external_id: str | None = None,
+    source_url: str | None = None,
 ) -> str:
-    normalized_values = [
-        normalize_fingerprint_value(title),
-        normalize_fingerprint_value(company),
-        normalize_fingerprint_value(location),
-    ]
+    if external_id:
+        normalized_values = [
+            normalize_fingerprint_value(source),
+            normalize_fingerprint_value(external_id),
+        ]
+    else:
+        normalized_values = [
+            normalize_fingerprint_value(company),
+            normalize_fingerprint_value(title),
+            normalize_fingerprint_value(location),
+            normalize_fingerprint_value(source_url or ""),
+        ]
     fingerprint_source = "|".join(normalized_values)
 
     return hashlib.sha256(
@@ -89,6 +99,9 @@ def create_job_offer(
         title=offer_data["title"],
         company=offer_data["company"],
         location=offer_data["location"],
+        source=offer_data["source"],
+        external_id=external_id,
+        source_url=source_url,
     )
 
     existing_fingerprint = db.scalar(

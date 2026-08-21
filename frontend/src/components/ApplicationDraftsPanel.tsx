@@ -7,9 +7,10 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { apiRequest } from "@/lib/api";
+import { apiRequest, downloadApiFile } from "@/lib/api";
 import type {
   ApplicationDraft,
+  ApplicationDocuments,
   ApplicationDraftStatus,
   ApplicationDraftUpdate,
   AutomationChannel,
@@ -287,6 +288,14 @@ function DraftCard({
     },
   });
 
+  const documentsMutation = useMutation({
+    mutationFn: () =>
+      apiRequest<ApplicationDocuments>(
+        `/application-drafts/${draft.id}/documents`,
+        { method: "POST" },
+      ),
+  });
+
   const automationMutation = useMutation({
     mutationFn: () =>
       apiRequest<AutomationEvaluation>(
@@ -335,6 +344,7 @@ function DraftCard({
     cvAdaptationTips !==
       draft.cv_adaptation_tips ||
     status !== draft.status;
+  const generatedDocuments = documentsMutation.data;
 
   const handleRegenerate = () => {
     const confirmed = window.confirm(
@@ -502,6 +512,58 @@ function DraftCard({
         </p>
       )}
 
+      {documentsMutation.isError && (
+        <p className="mt-4 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
+          Impossible de générer les fichiers :{" "}
+          {documentsMutation.error instanceof Error
+            ? documentsMutation.error.message
+            : "erreur inconnue"}
+        </p>
+      )}
+
+      {generatedDocuments && (
+        <div className={`mt-4 rounded-lg border p-4 text-sm ${
+          generatedDocuments.validation.valid
+            ? "border-emerald-800 bg-emerald-950/40 text-emerald-200"
+            : "border-red-800 bg-red-950/40 text-red-200"
+        }`}>
+          <p className="font-semibold">
+            {generatedDocuments.validation.valid
+              ? "Documents générés et vérifiés automatiquement."
+              : "Les documents contiennent des erreurs à corriger."}
+          </p>
+          {generatedDocuments.validation.errors.length > 0 && (
+            <ul className="mt-2 list-disc pl-5">
+              {generatedDocuments.validation.errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          )}
+          {generatedDocuments.validation.valid && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => downloadApiFile(
+                generatedDocuments.cover_letter_pdf_url,
+                "lettre-motivation.pdf",
+              )} className="rounded-lg bg-violet-700 px-3 py-2 font-semibold text-white">
+                Lettre PDF
+              </button>
+              <button type="button" onClick={() => downloadApiFile(
+                generatedDocuments.cover_letter_docx_url,
+                "lettre-motivation.docx",
+              )} className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white">
+                Lettre Word
+              </button>
+              <button type="button" onClick={() => downloadApiFile(
+                generatedDocuments.adapted_cv_pdf_url,
+                "cv-adapte.pdf",
+              )} className="rounded-lg bg-cyan-700 px-3 py-2 font-semibold text-white">
+                CV adapté PDF
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {markAppliedMutation.isError && (
         <p className="mt-4 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
           Impossible d’archiver la candidature :{" "}
@@ -547,6 +609,17 @@ function DraftCard({
           {regenerateMutation.isPending
             ? "Régénération..."
             : "Régénérer une nouvelle version"}
+        </button>
+
+        <button
+          type="button"
+          disabled={documentsMutation.isPending || hasChanges}
+          onClick={() => documentsMutation.mutate()}
+          className="rounded-lg border border-cyan-700 bg-cyan-950/40 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-900/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {documentsMutation.isPending
+            ? "Génération des fichiers..."
+            : "Générer CV, Word et PDF"}
         </button>
       </div>
 

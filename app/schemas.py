@@ -481,6 +481,21 @@ class ApplicationDraftRead(ORMModel):
     updated_at: datetime
 
 
+class DocumentValidationRead(BaseModel):
+    valid: bool
+    errors: list[str]
+
+
+class ApplicationDocumentsRead(BaseModel):
+    draft_id: int
+    version: int
+    cover_letter_docx_url: str
+    cover_letter_pdf_url: str
+    adapted_cv_pdf_url: str
+    short_message: str
+    validation: DocumentValidationRead
+
+
 AutomationChannel = Literal[
     "official_api",
     "recruitment_email",

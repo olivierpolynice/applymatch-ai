@@ -16,6 +16,8 @@ from app.services.collectors.la_bonne_alternance import (
 
 
 def test_france_travail_collects_relevant_offer() -> None:
+    requested_departments: set[str] = set()
+
     def handler(request: httpx.Request) -> httpx.Response:
         if "access_token" in str(request.url):
             return httpx.Response(
@@ -23,6 +25,9 @@ def test_france_travail_collects_relevant_offer() -> None:
                 json={"access_token": "token"},
             )
 
+        requested_departments.add(
+            request.url.params["departement"]
+        )
         return httpx.Response(
             200,
             json={
@@ -31,6 +36,7 @@ def test_france_travail_collects_relevant_offer() -> None:
                         "intitule": (
                             "Alternance ingénieur cloud"
                         ),
+                        "id": "ft-1",
                         "description": (
                             "Administration cloud, réseau et "
                             "sécurité informatique."
@@ -65,6 +71,11 @@ def test_france_travail_collects_relevant_offer() -> None:
     assert len(offers) == 1
     assert offers[0].company == "Entreprise FT"
     assert offers[0].source == "France Travail"
+    assert offers[0].external_id == "ft-1"
+    assert offers[0].application_channel == "official_api"
+    assert requested_departments == {
+        "75", "77", "78", "91", "92", "93", "94", "95"
+    }
 
 
 def test_adzuna_collects_and_deduplicates() -> None:
@@ -109,6 +120,8 @@ def test_adzuna_collects_and_deduplicates() -> None:
 
     assert len(offers) == 1
     assert offers[0].source == "Adzuna"
+    assert offers[0].external_id == "adzuna-1"
+    assert offers[0].application_channel == "official_api"
 
 
 def test_jooble_collects_and_deduplicates() -> None:

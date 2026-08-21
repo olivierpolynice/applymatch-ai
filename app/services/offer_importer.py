@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+import hashlib
 import unicodedata
 
 from sqlalchemy import select
@@ -9,7 +10,9 @@ from app.models import JobOffer
 from app.schemas import JobOfferCreate
 from app.services.job_offers import (
     DuplicateJobOfferError,
+    build_offer_fingerprint,
     create_job_offer,
+    normalize_fingerprint_value,
 )
 
 
@@ -33,7 +36,7 @@ def normalize_identity_part(value: str) -> str:
     return " ".join(without_accents.casefold().split())
 
 
-def offer_fingerprint(
+def legacy_offer_identity(
     *,
     title: str,
     company: str,
@@ -46,6 +49,38 @@ def offer_fingerprint(
     )
 
 
+def legacy_stored_fingerprint(
+    *,
+    title: str,
+    company: str,
+    location: str,
+) -> str:
+    source = "|".join(
+        normalize_fingerprint_value(value)
+        for value in (title, company, location)
+    )
+    return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+
+def offer_fingerprint(
+    *,
+    title: str,
+    company: str,
+    location: str,
+    source: str = "",
+    external_id: str | None = None,
+    source_url: str | None = None,
+) -> str:
+    return build_offer_fingerprint(
+        title=title,
+        company=company,
+        location=location,
+        source=source,
+        external_id=external_id,
+        source_url=source_url,
+    )
+
+
 def import_job_offers(
     db: Session,
     offers: Iterable[JobOfferCreate],
@@ -54,14 +89,21 @@ def import_job_offers(
     duplicates = 0
     errors = 0
     added_offer_ids: list[int] = []
-    known_fingerprints = {
-        offer_fingerprint(
+    known_fingerprints = set(
+        db.scalars(select(JobOffer.fingerprint))
+    )
+    known_legacy_identities = {
+        legacy_offer_identity(
             title=stored_offer.title,
             company=stored_offer.company,
             location=stored_offer.location,
         )
-        for stored_offer in db.scalars(
-            select(JobOffer)
+        for stored_offer in db.scalars(select(JobOffer))
+        if stored_offer.fingerprint
+        == legacy_stored_fingerprint(
+            title=stored_offer.title,
+            company=stored_offer.company,
+            location=stored_offer.location,
         )
     }
 
@@ -71,9 +113,24 @@ def import_job_offers(
             title=offer.title,
             company=offer.company,
             location=offer.location,
+            source=offer.source,
+            external_id=offer.external_id,
+            source_url=(
+                str(offer.source_url)
+                if offer.source_url is not None
+                else None
+            ),
+        )
+        legacy_identity = legacy_offer_identity(
+            title=offer.title,
+            company=offer.company,
+            location=offer.location,
         )
 
-        if fingerprint in known_fingerprints:
+        if (
+            fingerprint in known_fingerprints
+            or legacy_identity in known_legacy_identities
+        ):
             duplicates += 1
             continue
 

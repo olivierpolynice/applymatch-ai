@@ -76,3 +76,32 @@ export async function apiRequest<T>(
 
   return response.json() as Promise<T>;
 }
+
+
+export async function downloadApiFile(
+  endpoint: string,
+  filename: string,
+): Promise<void> {
+  const token = getAccessToken();
+  const headers = new Headers();
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${API_URL}${endpoint}`, { headers });
+
+  if (!response.ok) {
+    throw new Error(`Téléchargement impossible : HTTP ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}

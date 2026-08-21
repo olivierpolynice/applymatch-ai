@@ -37,6 +37,7 @@ backups/
 # Personal or uploaded data
 uploads/
 data/
+generated_documents/
 *.pdf
 # Local databases
 *.db

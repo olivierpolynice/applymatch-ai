@@ -1,6 +1,9 @@
 import logging
 import re
 from datetime import datetime, timezone
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +19,7 @@ from app.models import (
 from app.services.notifications import (
     create_notification_once,
 )
+from app.services.ai_text_generation import enhance_application_texts
 from app.services.technology_matcher import (
     normalize,
     verified_catalog,
@@ -23,6 +27,15 @@ from app.services.technology_matcher import (
 
 
 logger = logging.getLogger(__name__)
+
+TEMPLATE_DIRECTORY = Path(__file__).resolve().parents[1] / "templates"
+template_environment = Environment(
+    loader=FileSystemLoader(TEMPLATE_DIRECTORY),
+    undefined=StrictUndefined,
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
 FRENCH_MONTHS = {
     1: "janvier",
@@ -292,49 +305,60 @@ def build_cover_letter(
 
     if profile.experience_highlights:
         experience_paragraph = (
-            "\n\nMon parcours m’a notamment permis "
+            "Mon parcours m’a notamment permis "
             "de développer des compétences concrètes : "
             f"{profile.experience_highlights}"
         )
 
-    project_paragraph = ""
+    project_paragraph = (
+        build_ai_experience_paragraph()
+    )
 
     if profile.project_highlights:
         project_paragraph = (
-            "\n\nMes projets m’ont permis de mettre "
+            "Mes projets m’ont permis de mettre "
             "ces compétences en pratique, notamment : "
-            f"{profile.project_highlights}"
+            f"{profile.project_highlights}. "
+            f"{build_ai_experience_paragraph()}"
         )
 
-    ai_experience_paragraph = (
-        "\n\n"
-        + build_ai_experience_paragraph()
+    template = template_environment.get_template(
+        "cover_letter.txt.j2"
     )
-
-    return (
-        f"Objet : Candidature – {offer.title}\n\n"
-        "Madame, Monsieur,\n\n"
-        "Je souhaite vous proposer ma candidature "
-        f"au poste de {offer.title} au sein de "
-        f"{offer.company}. {professional_summary}\n\n"
-        "Cette opportunité s’inscrit pleinement dans "
-        "mon projet professionnel, orienté vers "
-        f"{target_domains}. Les compétences détectées "
-        "comme directement pertinentes pour cette "
-        f"offre sont notamment {matched_skills}."
-        f"{experience_paragraph}"
-        f"{project_paragraph}"
-        f"{ai_experience_paragraph}\n\n"
-        f"Disponible à partir de {availability}, selon "
-        f"un rythme de {profile.work_schedule}, "
-        "je serais heureux d’échanger avec vous afin "
-        "de vous présenter plus précisément ma "
-        "motivation et mon parcours.\n\n"
-        "Je vous prie d’agréer, Madame, Monsieur, "
-        "l’expression de mes salutations "
-        "distinguées.\n\n"
-        f"{profile.full_name}"
-    )
+    return template.render(
+        offer_title=offer.title,
+        candidate_name=profile.full_name,
+        introduction=(
+            "Je souhaite vous proposer ma candidature "
+            f"au poste de {offer.title} au sein de "
+            f"{offer.company}. {professional_summary}"
+        ),
+        offer_match=(
+            "Cette opportunité s’inscrit pleinement dans "
+            "mon projet professionnel, orienté vers "
+            f"{target_domains}. Les compétences détectées "
+            "comme directement pertinentes pour cette "
+            f"offre sont notamment {matched_skills}."
+            + (
+                f" {experience_paragraph}"
+                if experience_paragraph
+                else ""
+            )
+        ),
+        relevant_projects=project_paragraph,
+        motivation=(
+            f"Disponible à partir de {availability}, selon "
+            f"un rythme de {profile.work_schedule}, "
+            "je souhaite mettre mon sérieux, ma curiosité "
+            "et mes compétences prouvées au service de vos missions."
+        ),
+        conclusion=(
+            "Je serais heureux d’échanger avec vous afin de vous "
+            "présenter plus précisément ma motivation et mon parcours. "
+            "Je vous prie d’agréer, Madame, Monsieur, l’expression "
+            "de mes salutations distinguées."
+        ),
+    ).strip()
 
 
 def build_short_message(
@@ -453,14 +477,24 @@ def build_adapted_cv_snapshot(
     """Build a truthful, text-only CV version suitable for archiving."""
     verified_skills = verified_skills_for_draft(match_result)
     matched = format_skills(verified_skills)
+    optional_experience = (
+        f"\n\nEXPÉRIENCES\n{profile.experience_highlights}"
+        if profile.experience_highlights
+        else ""
+    )
+    optional_projects = (
+        f"\n\nPROJETS\n{profile.project_highlights}"
+        if profile.project_highlights
+        else ""
+    )
     return (
         f"{profile.full_name}\n"
         f"POSTE CIBLÉ : {offer.title}\n\n"
         f"PROFIL\n{profile.professional_summary or profile.program}\n\n"
         f"FORMATION\n{profile.education_level} – {profile.program}\n\n"
-        f"COMPÉTENCES PERTINENTES\n{matched}\n\n"
-        f"EXPÉRIENCES\n{profile.experience_highlights or 'À compléter'}\n\n"
-        f"PROJETS\n{profile.project_highlights or 'À compléter'}\n\n"
+        f"COMPÉTENCES PERTINENTES\n{matched}"
+        f"{optional_experience}"
+        f"{optional_projects}\n\n"
         f"DISPONIBILITÉ\n{profile.availability} – {profile.work_schedule}\n"
         f"LOCALISATION\n{profile.location}"
     )
@@ -547,6 +581,23 @@ def create_application_draft(
             item,
         )
     )
+    deterministic_cover_letter = build_cover_letter(
+        profile,
+        offer,
+        match_result,
+    )
+    deterministic_short_message = build_short_message(
+        profile,
+        offer,
+        match_result,
+    )
+    cover_letter, short_message = enhance_application_texts(
+        profile=profile,
+        offer=offer,
+        match_result=match_result,
+        fallback_cover_letter=deterministic_cover_letter,
+        fallback_short_message=deterministic_short_message,
+    )
 
     draft = ApplicationDraft(
         validation_queue_item_id=item.id,
@@ -554,16 +605,8 @@ def create_application_draft(
         offer_id=offer.id,
         status="draft",
         version=1,
-        cover_letter=build_cover_letter(
-            profile,
-            offer,
-            match_result,
-        ),
-        short_message=build_short_message(
-            profile,
-            offer,
-            match_result,
-        ),
+        cover_letter=cover_letter,
+        short_message=short_message,
         cv_adaptation_tips=(
             build_cv_adaptation_tips(
                 profile,
@@ -646,15 +689,22 @@ def regenerate_application_draft(
         )
     )
 
-    draft.cover_letter = build_cover_letter(
+    deterministic_cover_letter = build_cover_letter(
         profile,
         offer,
         match_result,
     )
-    draft.short_message = build_short_message(
+    deterministic_short_message = build_short_message(
         profile,
         offer,
         match_result,
+    )
+    draft.cover_letter, draft.short_message = enhance_application_texts(
+        profile=profile,
+        offer=offer,
+        match_result=match_result,
+        fallback_cover_letter=deterministic_cover_letter,
+        fallback_short_message=deterministic_short_message,
     )
     draft.cv_adaptation_tips = (
         build_cv_adaptation_tips(

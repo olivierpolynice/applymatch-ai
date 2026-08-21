@@ -169,6 +169,19 @@ export interface ApplicationDraft {
   updated_at: string;
 }
 
+export interface ApplicationDocuments {
+  draft_id: number;
+  version: number;
+  cover_letter_docx_url: string;
+  cover_letter_pdf_url: string;
+  adapted_cv_pdf_url: string;
+  short_message: string;
+  validation: {
+    valid: boolean;
+    errors: string[];
+  };
+}
+
 export type AutomationChannel =
   | "official_api"
   | "recruitment_email"

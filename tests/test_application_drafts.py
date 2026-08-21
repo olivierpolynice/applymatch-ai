@@ -255,6 +255,44 @@ def test_generating_draft_does_not_send_application(
     assert queue_response.json()["status"] == "approved"
 
 
+def test_generate_and_validate_application_documents(
+    authenticated_client: TestClient,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(
+        "GENERATED_DOCUMENTS_DIR",
+        str(tmp_path),
+    )
+    _, queue_item = create_approved_queue_item(authenticated_client)
+    draft = create_draft(authenticated_client, queue_item["id"])
+
+    response = authenticated_client.post(
+        f"/application-drafts/{draft['id']}/documents"
+    )
+
+    assert response.status_code == 200
+    documents = response.json()
+    assert documents["validation"] == {
+        "valid": True,
+        "errors": [],
+    }
+    assert "Akuo" in documents["short_message"]
+
+    for field, content_type in (
+        ("cover_letter_pdf_url", "application/pdf"),
+        ("adapted_cv_pdf_url", "application/pdf"),
+        (
+            "cover_letter_docx_url",
+            "application/vnd.openxmlformats-officedocument",
+        ),
+    ):
+        download = authenticated_client.get(documents[field])
+        assert download.status_code == 200
+        assert content_type in download.headers["content-type"]
+        assert download.content
+
+
 def test_unknown_application_draft_returns_404(
     authenticated_client: TestClient,
 ) -> None:

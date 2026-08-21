@@ -12,6 +12,7 @@ from app.services.collectors.la_bonne_alternance import (
     normalize_text,
 )
 from app.services.priority_filter import (
+    extract_experience_range,
     parse_platform_datetime,
 )
 
@@ -47,7 +48,10 @@ def is_relevant_offer(raw_offer: dict[str, Any]) -> bool:
             for word in (
                 "alternance",
                 "apprentissage",
-                "professionnalisation",
+            "professionnalisation",
+            "stage",
+            "stagiaire",
+            "internship",
             )
         )
         and any(
@@ -62,6 +66,33 @@ def transform_offer(
 ) -> JobOfferCreate:
     company = raw_offer.get("company") or {}
     location = raw_offer.get("location") or {}
+    description = str(
+        raw_offer.get("description")
+        or "Description indisponible pour cette offre."
+    ).strip()
+    experience_min, experience_max = extract_experience_range(
+        description
+    )
+    external_id = str(raw_offer.get("id") or "").strip() or None
+    raw_contract = str(raw_offer.get("contract_type") or "").strip()
+    normalized_contract_text = normalize_text(
+        f"{raw_contract} {raw_offer.get('title') or ''} {description}"
+    )
+    contract_type = raw_contract or "Alternance"
+    if any(
+        marker in normalized_contract_text
+        for marker in ("stage", "stagiaire", "internship")
+    ):
+        contract_type = "Stage"
+    elif any(
+        marker in normalized_contract_text
+        for marker in (
+            "alternance",
+            "apprentissage",
+            "professionnalisation",
+        )
+    ):
+        contract_type = "Alternance"
 
     return JobOfferCreate(
         title=str(
@@ -76,19 +107,17 @@ def transform_offer(
             location.get("display_name")
             or "Île-de-France"
         ).strip(),
-        contract_type=str(
-            raw_offer.get("contract_type")
-            or "Alternance"
-        ).strip(),
-        description=str(
-            raw_offer.get("description")
-            or "Description indisponible pour cette offre."
-        ).strip(),
+        contract_type=contract_type,
+        description=description,
         source="Adzuna",
+        external_id=external_id,
         source_url=raw_offer.get("redirect_url"),
         published_at=parse_datetime(
             raw_offer.get("created"),
         ),
+        experience_min=experience_min,
+        experience_max=experience_max,
+        application_channel="official_api",
     )
 
 
