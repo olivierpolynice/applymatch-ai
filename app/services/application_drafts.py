@@ -16,6 +16,10 @@ from app.models import (
 from app.services.notifications import (
     create_notification_once,
 )
+from app.services.technology_matcher import (
+    normalize,
+    verified_catalog,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +63,28 @@ def format_skills(
         return "mes compétences techniques"
 
     return ", ".join(skills)
+
+
+def verified_skills_for_draft(
+    match_result: MatchResult,
+) -> list[str]:
+    """Return only canonical technologies backed by profile evidence."""
+    if match_result.known_technologies:
+        return list(match_result.known_technologies)
+
+    aliases_to_name = {
+        normalize(alias): technology.name
+        for technology in verified_catalog()
+        for alias in [technology.name, *technology.aliases]
+    }
+
+    return list(
+        dict.fromkeys(
+            aliases_to_name[normalize(skill)]
+            for skill in match_result.matched_skills
+            if normalize(skill) in aliases_to_name
+        )
+    )
 
 
 def format_availability(value: str) -> str:
@@ -242,8 +268,9 @@ def build_cover_letter(
     offer: JobOffer,
     match_result: MatchResult,
 ) -> str:
+    verified_skills = verified_skills_for_draft(match_result)
     matched_skills = format_skills(
-        match_result.matched_skills
+        verified_skills
     )
     availability = format_availability(
         profile.availability
@@ -315,8 +342,9 @@ def build_short_message(
     offer: JobOffer,
     match_result: MatchResult,
 ) -> str:
+    verified_skills = verified_skills_for_draft(match_result)
     highlighted_skills = format_skills(
-        match_result.matched_skills[:4]
+        verified_skills[:4]
     )
     availability = format_availability(
         profile.availability
@@ -423,7 +451,8 @@ def build_adapted_cv_snapshot(
     match_result: MatchResult,
 ) -> str:
     """Build a truthful, text-only CV version suitable for archiving."""
-    matched = format_skills(match_result.matched_skills)
+    verified_skills = verified_skills_for_draft(match_result)
+    matched = format_skills(verified_skills)
     return (
         f"{profile.full_name}\n"
         f"POSTE CIBLÉ : {offer.title}\n\n"

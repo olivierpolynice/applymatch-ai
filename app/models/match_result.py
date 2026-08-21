@@ -72,6 +72,22 @@ class MatchResult(Base):
         default=list,
     )
     missing_skills: Mapped[list[str]] = mapped_column(JSON)
+    known_technologies: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+    )
+    unknown_technologies: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+    )
+    required_technologies: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+    )
+    preferred_technologies: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+    )
 
     skills_score: Mapped[int]
     role_score: Mapped[int]

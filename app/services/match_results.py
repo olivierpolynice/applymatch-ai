@@ -18,7 +18,7 @@ from app.services.notifications import (
 
 logger = logging.getLogger(__name__)
 
-HIGH_SCORE_THRESHOLD = 70
+HIGH_SCORE_THRESHOLD = 60
 
 
 @dataclass(frozen=True)

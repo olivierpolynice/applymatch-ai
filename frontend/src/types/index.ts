@@ -87,6 +87,17 @@ export interface MatchResult {
   matched_skills: string[];
   skills_to_strengthen: string[];
   missing_skills: string[];
+  known_technologies: string[];
+  unknown_technologies: string[];
+  required_technologies: string[];
+  preferred_technologies: string[];
+  explanation: {
+    total_score: number;
+    known_skills: string[];
+    unknown_skills: string[];
+    blocking_reasons: string[];
+    decision: "rejected" | "manual_review" | "documents_ready";
+  };
   details: MatchDetails;
   created_at: string;
   updated_at: string;

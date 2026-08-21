@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -32,10 +32,20 @@ class Preferences(BaseModel):
     active: bool = True
 
 
+class TechnologyDefinition(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    aliases: list[str] = Field(default_factory=list)
+    level: Literal["practiced", "familiar", "certified"]
+    evidence: list[str] = Field(min_length=1)
+
+
 class CandidateProfileDocument(BaseModel):
     schema_version: str
     profile: ProfileIdentity
     skills: dict[str, list[str]]
+    technologies: list[TechnologyDefinition] = Field(
+        default_factory=list,
+    )
     target_domains: list[str]
     target_roles: list[str]
     location: Location
@@ -66,6 +76,10 @@ def document_to_database_values(document: CandidateProfileDocument) -> dict[str,
         for skill in category_skills
     ]
     all_skills.extend(document.ats_keywords)
+    all_skills.extend(
+        technology.name
+        for technology in document.technologies
+    )
     location = ", ".join(_unique(document.location.preferred))
     return {
         "full_name": document.profile.full_name,

@@ -51,6 +51,7 @@ def test_match_profile_with_offer(
 
     data = response.json()
     details = data["details"]
+    explanation = data["explanation"]
 
     assert 0 <= data["score"] <= 100
     assert data["recommendation"] in {
@@ -77,6 +78,13 @@ def test_match_profile_with_offer(
         data["missing_skills"],
         list,
     )
+    assert explanation["total_score"] == data["score"]
+    assert explanation["known_skills"] == data["known_technologies"]
+    assert explanation["unknown_skills"] == data["unknown_technologies"]
+    assert explanation["blocking_reasons"] == details[
+        "eligibility_reasons"
+    ]
+    assert explanation["decision"] == data["decision"]
 
     assert details["contract_match"] is True
     assert details["location_match"] is True
@@ -88,10 +96,10 @@ def test_match_profile_with_offer(
     assert details["experience_score"] == 10
     assert 0 <= details["freshness_score"] <= 5
 
-    assert 0 <= details["skills_score"] <= 30
+    assert 0 <= details["skills_score"] <= 35
     assert details["role_score"] in {
         0,
-        25,
+        20,
     }
 
     assert data["score"] == sum(
@@ -235,7 +243,7 @@ def test_matching_detects_ai_skills(
     )
     assert "python" in data["matched_skills"]
     assert data["details"]["role_match"] is True
-    assert data["details"]["role_score"] == 25
+    assert data["details"]["role_score"] == 20
 
 
 def test_matching_unknown_profile_returns_404(
@@ -330,14 +338,14 @@ def test_cdi_is_rejected_even_with_known_technologies(
     )
 
     assert response.status_code == 200
-    assert response.json()["score"] == 0
+    assert response.json()["score"] >= 60
     assert response.json()["decision"] == "rejected"
     assert "contrat autre qu’alternance ou stage" in (
         response.json()["details"]["eligibility_reasons"]
     )
 
 
-def test_alternance_published_as_cdd_is_accepted(
+def test_alternance_published_as_cdd_is_rejected(
     authenticated_client: TestClient,
 ) -> None:
     profile = create_profile(authenticated_client)
@@ -361,7 +369,10 @@ def test_alternance_published_as_cdd_is_accepted(
 
     assert response.status_code == 200
     assert response.json()["details"]["contract_match"] is True
-    assert response.json()["decision"] != "rejected"
+    assert response.json()["decision"] == "rejected"
+    assert "contrat CDI, CDD ou autre contrat interdit" in (
+        response.json()["details"]["eligibility_reasons"]
+    )
 
 
 def test_offer_requiring_more_than_two_years_is_rejected(
@@ -633,7 +644,7 @@ def test_recommendations_for_high_score() -> None:
         eligibility_reasons=[],
     )
 
-    assert decision == "automatic_ready"
+    assert decision == "documents_ready"
     assert priority == "high"
     assert any(
         "Candidature recommandée" in action
@@ -668,10 +679,10 @@ def test_recommendations_for_medium_score() -> None:
         eligibility_reasons=[],
     )
 
-    assert decision == "manual_review"
-    assert priority == "medium"
+    assert decision == "documents_ready"
+    assert priority == "high"
     assert any(
-        "examiner manuellement" in action
+        "Candidature recommandée" in action
         for action in actions
     )
     assert any(

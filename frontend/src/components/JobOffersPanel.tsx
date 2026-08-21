@@ -59,7 +59,7 @@ export default function JobOffersPanel({
         return false;
       }
       if (section === "priority") {
-        return matching?.decision === "automatic_ready";
+        return matching?.decision === "documents_ready";
       }
       if (section === "manual") {
         return matching?.decision === "manual_review";
@@ -80,7 +80,7 @@ export default function JobOffersPanel({
     ).length,
     priority: results.filter((result) =>
       priorityOfferIds.has(result.offer_id) &&
-      result.decision === "automatic_ready",
+      result.decision === "documents_ready",
     ).length,
     rejected: offers.filter((offer) =>
       offer.status === "rejected" ||

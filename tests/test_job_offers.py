@@ -12,7 +12,7 @@ OFFER_DATA = {
     ),
     "source": "Import manuel",
     "source_url": "https://example.com/jobs/akuo-network-security",
-    "published_at": "2026-08-08T12:00:00+02:00",
+    "published_at": None,
 }
 
 

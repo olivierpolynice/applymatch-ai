@@ -4,6 +4,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.models import CandidateProfile, JobOffer
+from app.services.priority_filter import evaluate_priority_offer
+from app.services.scoring_engine import explain_score
+from app.services.technology_matcher import (
+    analyze_technologies,
+)
 
 
 SKILLS: dict[str, tuple[str, ...]] = {
@@ -320,7 +325,7 @@ def calculate_skills_score(
     )
 
     score = round(
-        30
+        35
         * weighted_matches
         / len(offer_skills)
     )
@@ -470,17 +475,19 @@ def calculate_experience_match(offer_text: str) -> bool:
 
 def calculate_freshness_score(offer: JobOffer) -> int:
     if offer.published_at is None:
-        return 3
+        return 0
     published_at = offer.published_at
     if published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-    age_days = max(0, (datetime.now(timezone.utc) - published_at).days)
-    if age_days <= 7:
+    age_hours = max(
+        0,
+        (
+            datetime.now(timezone.utc) - published_at
+        ).total_seconds()
+        / 3600,
+    )
+    if age_hours <= 24:
         return 5
-    if age_days <= 21:
-        return 3
-    if age_days <= 45:
-        return 1
     return 0
 
 
@@ -656,8 +663,8 @@ def build_recommendations(
         actions = [
             "Offre écartée : " + "; ".join(eligibility_reasons) + "."
         ]
-    elif score >= 70:
-        decision = "automatic_ready"
+    elif score >= 60:
+        decision = "documents_ready"
         application_priority = "high"
         actions = [
             (
@@ -671,7 +678,7 @@ def build_recommendations(
         actions = [
             (
                 "Offre admissible à examiner manuellement : "
-                "le score est inférieur à 70/100."
+                "le score est inférieur à 60/100."
             )
         ]
 
@@ -754,6 +761,9 @@ def calculate(
         detect_profile_skill_levels(profile)
     )
     offer_skills = detected_skills(offer_text)
+    technology_analysis = analyze_technologies(
+        offer_text
+    )
 
     (
         skills_score,
@@ -776,7 +786,7 @@ def calculate(
         profile_skills=all_profile_skills,
         offer_skills=offer_skills,
     )
-    role_score = 25 if role_match else 0
+    role_score = 20 if role_match else 0
 
     contract_match = calculate_contract_match(
         profile,
@@ -803,6 +813,23 @@ def calculate(
     freshness_score = calculate_freshness_score(offer)
 
     eligibility_reasons: list[str] = []
+    priority_result = evaluate_priority_offer(offer)
+    priority_reason_messages = {
+        "offre_inactive": "offre déjà traitée ou archivée",
+        "offre_plus_de_24_heures": "offre publiée depuis plus de 24 heures",
+        "date_publication_future": "date de publication future",
+        "offre_expiree": "offre expirée",
+        "contrat_interdit": "contrat CDI, CDD ou autre contrat interdit",
+        "contrat_non_reconnu": "contrat autre qu’alternance ou stage",
+        "experience_superieure_a_2_ans": (
+            "expérience demandée supérieure à 2 ans"
+        ),
+    }
+    eligibility_reasons.extend(
+        priority_reason_messages[reason]
+        for reason in priority_result.reasons
+        if reason in priority_reason_messages
+    )
     if not contract_match:
         eligibility_reasons.append(
             "contrat autre qu’alternance ou stage"
@@ -824,6 +851,24 @@ def calculate(
             "aucun domaine ciblé ni technologie prouvée"
         )
 
+    eligibility_reasons = list(
+        dict.fromkeys(eligibility_reasons)
+    )
+
+    technology_count = (
+        len(technology_analysis.known)
+        + len(technology_analysis.unknown)
+    )
+    skills_score = (
+        round(
+            35
+            * len(technology_analysis.known)
+            / technology_count
+        )
+        if technology_count
+        else 0
+    )
+
     score = min(
         100,
         skills_score
@@ -834,9 +879,6 @@ def calculate(
         + experience_score
         + freshness_score,
     )
-
-    if eligibility_reasons:
-        score = 0
 
     if score >= 85:
         recommendation = "Excellente compatibilité"
@@ -854,8 +896,15 @@ def calculate(
         ),
     )
 
+    explanation = explain_score(
+        total_score=score,
+        known_skills=list(technology_analysis.known),
+        unknown_skills=list(technology_analysis.unknown),
+        blocking_reasons=eligibility_reasons,
+    )
+
     (
-        decision,
+        _legacy_decision,
         application_priority,
         actions,
     ) = build_recommendations(
@@ -875,7 +924,7 @@ def calculate(
         "score": score,
         "recommendation": recommendation,
         "confidence": confidence,
-        "decision": decision,
+        "decision": explanation.decision,
         "application_priority": application_priority,
         "actions": actions,
         "matched_skills": matched_skills,
@@ -883,6 +932,18 @@ def calculate(
             skills_to_strengthen
         ),
         "missing_skills": missing_skills,
+        "known_technologies": list(
+            technology_analysis.known
+        ),
+        "unknown_technologies": list(
+            technology_analysis.unknown
+        ),
+        "required_technologies": list(
+            technology_analysis.required
+        ),
+        "preferred_technologies": list(
+            technology_analysis.preferred
+        ),
         "skills_score": skills_score,
         "role_score": role_score,
         "contract_score": contract_score,

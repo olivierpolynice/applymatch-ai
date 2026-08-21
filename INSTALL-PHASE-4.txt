@@ -1,0 +1,83 @@
+APPLYMATCH AI — INSTALLATION DE LA PHASE 4
+==========================================
+
+But : activer le nouveau score déterministe et le seuil de préparation à 60.
+
+RÈGLES DU MOTEUR
+----------------
+- Technologies : 35 points
+- Domaine : 20 points
+- Contrat : 15 points
+- Expérience : 10 points
+- Localisation : 10 points
+- Formation : 5 points
+- Fraîcheur : 5 points
+
+Décisions :
+- motif bloquant : rejected, quel que soit le score ;
+- score de 0 à 59 sans blocage : manual_review ;
+- score de 60 à 100 sans blocage : documents_ready.
+
+IMPORTANT
+---------
+- Installer la Phase 3 avant cette Phase 4.
+- Conserver la sauvegarde de Phase 0.
+- Ne jamais copier le texte « PS C:\...> » avec les commandes.
+
+1. DÉCOMPRESSER
+---------------
+Fermer les serveurs backend et frontend, puis exécuter :
+
+cd C:\DevOps\applymatch-ai
+Expand-Archive -Path "$env:USERPROFILE\Downloads\applymatch-ai-phase-4.zip" -DestinationPath "C:\DevOps\applymatch-ai" -Force
+
+2. ACTIVER LE BACKEND
+---------------------
+cd C:\DevOps\applymatch-ai
+.\.venv\Scripts\Activate.ps1
+python --version
+python -m pip install -r requirements.txt
+
+La version doit commencer par Python 3.11.
+Aucune nouvelle migration Alembic n'est nécessaire pour cette phase.
+
+3. TESTER LA MATRICE DE SCORE
+-----------------------------
+python -m pytest tests\test_scoring_engine_v3.py -q
+
+Résultat attendu : 8 passed.
+
+4. TESTER TOUT LE BACKEND
+-------------------------
+python -m pytest tests -q
+
+Résultat attendu : aucun FAILED.
+
+5. TESTER LE FRONTEND
+---------------------
+cd C:\DevOps\applymatch-ai\frontend
+npm test -- --run
+npm run build
+
+Résultat attendu : aucune erreur.
+
+6. RELANCER
+-----------
+Backend :
+
+cd C:\DevOps\applymatch-ai
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn app.main:app --reload
+
+Frontend, dans un deuxième terminal :
+
+cd C:\DevOps\applymatch-ai\frontend
+npm run dev
+
+7. CONTRÔLE VISUEL
+------------------
+- Relancer l'analyse d'une offre récente.
+- Vérifier le détail : 35 + 20 + 15 + 10 + 10 + 5 + 5 = 100.
+- Vérifier que 60 affiche « Documents prêts (≥60) ».
+- Vérifier qu'un CDI, un CDD, une offre de plus de 24 heures ou une demande
+  de plus de 2 ans reste rejeté, même avec un score technique élevé.

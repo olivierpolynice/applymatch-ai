@@ -17,6 +17,158 @@ skills:
   development: ["Python", "FastAPI", "API REST", "React", "Next.js", "TypeScript", "JavaScript", "SQL", "PostgreSQL", "SQLite", "SQLAlchemy", "Alembic", "Pytest", "Git", "GitHub"]
   artificial_intelligence: ["Intelligence artificielle", "Matching", "Scoring", "Génération contrôlée de documents"]
 
+# Source de vérité utilisée pour les candidatures. Une technologie n'est
+# considérée comme connue que si elle possède au moins une preuve ci-dessous.
+technologies:
+  - name: Python
+    aliases: [python3, scripting python]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS]
+  - name: FastAPI
+    aliases: [fast api, API Python]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS]
+  - name: SQLAlchemy
+    aliases: [sql alchemy, ORM SQLAlchemy]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS]
+  - name: Alembic
+    aliases: [migration alembic, migrations SQL]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: PostgreSQL
+    aliases: [postgres, postgresql]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS]
+  - name: SQLite
+    aliases: [sqlite3]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: SQL
+    aliases: [requêtes SQL, relational database]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS]
+  - name: Pytest
+    aliases: [pytest, tests python]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard]
+  - name: React
+    aliases: [react.js, reactjs, react hooks]
+    level: practiced
+    evidence: [ApplyMatch AI, Portfolio]
+  - name: Next.js
+    aliases: [nextjs, next js]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: TypeScript
+    aliases: [typescript, ts]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: JavaScript
+    aliases: [javascript, js]
+    level: practiced
+    evidence: [Portfolio]
+  - name: Vite
+    aliases: [vitejs, vite.js]
+    level: practiced
+    evidence: [Portfolio]
+  - name: API REST
+    aliases: [rest api, restful api, API RESTful]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard]
+  - name: Git
+    aliases: [gestion de versions git]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard, Portfolio]
+  - name: GitHub
+    aliases: [github.com]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard, Portfolio]
+  - name: Docker
+    aliases: [conteneurs docker, containerisation]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard]
+  - name: Docker Compose
+    aliases: [docker-compose, compose.yaml]
+    level: practiced
+    evidence: [ApplyMatch AI, SADS, AccessGuard]
+  - name: GitHub Actions
+    aliases: [github workflow, actions github]
+    level: practiced
+    evidence: [AccessGuard, Portfolio TechWatch]
+  - name: CI/CD
+    aliases: [cicd, intégration continue, déploiement continu]
+    level: practiced
+    evidence: [AccessGuard, Portfolio TechWatch]
+  - name: Linux
+    aliases: [gnu linux, administration linux]
+    level: practiced
+    evidence: [Master Réseaux Cybersécurité et Cloud, SADS]
+  - name: TCP/IP
+    aliases: [tcp ip, modèle tcp/ip]
+    level: practiced
+    evidence: [DUT Télécommunications, Master Réseaux Cybersécurité et Cloud]
+  - name: Administration systèmes et réseaux
+    aliases: [administration réseau, system administration, networking]
+    level: practiced
+    evidence: [DUT Télécommunications, Master Réseaux Cybersécurité et Cloud]
+  - name: JWT
+    aliases: [json web token, tokens jwt]
+    level: practiced
+    evidence: [AccessGuard, SADS, ApplyMatch AI]
+  - name: OAuth2
+    aliases: [oauth 2, oauth 2.0]
+    level: practiced
+    evidence: [SADS]
+  - name: RBAC
+    aliases: [role based access control, contrôle d'accès par rôles]
+    level: practiced
+    evidence: [AccessGuard, SADS]
+  - name: Prometheus
+    aliases: [prometheus monitoring]
+    level: practiced
+    evidence: [AccessGuard]
+  - name: Grafana
+    aliases: [grafana dashboard]
+    level: practiced
+    evidence: [AccessGuard]
+  - name: Render
+    aliases: [render.com]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: Vercel
+    aliases: [vercel.com]
+    level: practiced
+    evidence: [ApplyMatch AI, Portfolio]
+  - name: Neon PostgreSQL
+    aliases: [neon db, neon database, neon postgres]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: Intelligence artificielle
+    aliases: [IA, artificial intelligence, AI]
+    level: practiced
+    evidence: [ApplyMatch AI, IBM AI Fundamentals]
+  - name: Matching
+    aliases: [matching algorithm, algorithme de correspondance]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: Scoring
+    aliases: [moteur de score, score de compatibilité]
+    level: practiced
+    evidence: [ApplyMatch AI]
+  - name: Analyse de logs
+    aliases: [log analysis, analyse des journaux]
+    level: practiced
+    evidence: [SADS]
+  - name: Détection d'incidents
+    aliases: [incident detection, détection de sécurité]
+    level: practiced
+    evidence: [SADS]
+  - name: DevSecOps
+    aliases: [dev sec ops, sécurité CI/CD]
+    level: practiced
+    evidence: [AccessGuard]
+
 target_domains: ["Cybersécurité", "Intelligence artificielle", "Cloud", "DevSecOps", "Systèmes et réseaux"]
 target_roles:
   - "Alternant cybersécurité"

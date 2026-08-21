@@ -291,6 +291,18 @@ class MatchDetails(BaseModel):
     eligibility_reasons: list[str]
 
 
+class ScoreExplanationRead(BaseModel):
+    total_score: int = Field(ge=0, le=100)
+    known_skills: list[str]
+    unknown_skills: list[str]
+    blocking_reasons: list[str]
+    decision: Literal[
+        "rejected",
+        "manual_review",
+        "documents_ready",
+    ]
+
+
 class MatchResultRead(ORMModel):
     id: int
     profile_id: int
@@ -304,6 +316,11 @@ class MatchResultRead(ORMModel):
     matched_skills: list[str]
     skills_to_strengthen: list[str]
     missing_skills: list[str]
+    known_technologies: list[str]
+    unknown_technologies: list[str]
+    required_technologies: list[str]
+    preferred_technologies: list[str]
+    explanation: ScoreExplanationRead
     details: MatchDetails
     created_at: datetime
     updated_at: datetime

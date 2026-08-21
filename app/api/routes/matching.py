@@ -32,6 +32,12 @@ router = APIRouter(
 def serialize_match(
     result: MatchResult,
 ) -> dict[str, Any]:
+    decision = (
+        "documents_ready"
+        if result.decision == "automatic_ready"
+        else result.decision
+    )
+
     return {
         "id": result.id,
         "profile_id": result.profile_id,
@@ -39,7 +45,7 @@ def serialize_match(
         "score": result.score,
         "recommendation": result.recommendation,
         "confidence": result.confidence,
-        "decision": result.decision,
+        "decision": decision,
         "application_priority": (
             result.application_priority
         ),
@@ -49,6 +55,25 @@ def serialize_match(
             result.skills_to_strengthen
         ),
         "missing_skills": result.missing_skills,
+        "known_technologies": (
+            result.known_technologies
+        ),
+        "unknown_technologies": (
+            result.unknown_technologies
+        ),
+        "required_technologies": (
+            result.required_technologies
+        ),
+        "preferred_technologies": (
+            result.preferred_technologies
+        ),
+        "explanation": {
+            "total_score": result.score,
+            "known_skills": result.known_technologies,
+            "unknown_skills": result.unknown_technologies,
+            "blocking_reasons": result.eligibility_reasons,
+            "decision": decision,
+        },
         "details": {
             "skills_score": result.skills_score,
             "role_score": result.role_score,

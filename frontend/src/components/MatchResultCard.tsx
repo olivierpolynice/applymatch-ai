@@ -137,16 +137,16 @@ export default function MatchResultCard({
             score={
               result.details.skills_score
             }
-            maximum={30}
+            maximum={35}
             matched={
-              result.matched_skills.length > 0
+              result.known_technologies.length > 0
             }
           />
 
           <ScoreCard
             label="Métier"
             score={result.details.role_score}
-            maximum={25}
+            maximum={20}
             matched={
               result.details.role_match
             }
@@ -203,29 +203,27 @@ export default function MatchResultCard({
 
       <section className="mt-6 grid gap-5 lg:grid-cols-3">
         <SkillList
-          title="Compétences maîtrisées"
-          skills={result.matched_skills}
-          emptyMessage="Aucune compétence détectée"
+          title="Technologies connues et prouvées"
+          skills={result.known_technologies ?? []}
+          emptyMessage="Aucune technologie prouvée détectée"
           titleColor="text-emerald-400"
           badgeColor="bg-emerald-950 text-emerald-300"
         />
 
         <SkillList
-          title="Compétences à renforcer"
-          skills={
-            result.skills_to_strengthen
-          }
-          emptyMessage="Aucune compétence à renforcer"
+          title="Technologies inconnues"
+          skills={result.unknown_technologies ?? []}
+          emptyMessage="Aucune technologie inconnue détectée"
           titleColor="text-amber-400"
           badgeColor="bg-amber-950 text-amber-300"
         />
 
         <SkillList
-          title="Compétences manquantes"
-          skills={result.missing_skills}
-          emptyMessage="Aucune compétence manquante"
-          titleColor="text-red-400"
-          badgeColor="bg-red-950 text-red-300"
+          title="Technologies obligatoires"
+          skills={result.required_technologies ?? []}
+          emptyMessage="Aucune technologie obligatoire détectée"
+          titleColor="text-violet-400"
+          badgeColor="bg-violet-950 text-violet-300"
         />
       </section>
 
@@ -449,7 +447,7 @@ function formatDecision(
   decision: string,
 ): string {
   const labels: Record<string, string> = {
-    automatic_ready: "Prioritaire (≥70)",
+    documents_ready: "Documents prêts (≥60)",
     manual_review: "À examiner",
     rejected: "Rejetée",
   };
@@ -472,7 +470,7 @@ function formatPriority(
 function decisionColor(
   decision: string,
 ): string {
-  if (decision === "automatic_ready") {
+  if (decision === "documents_ready") {
     return "border-emerald-800 bg-emerald-950 text-emerald-300";
   }
 
