@@ -11,9 +11,13 @@ from app.models import (
     MatchResult,
 )
 from app.models.application_archive import utc_now
+from app.services.matching import (
+    calculate_experience_match,
+    is_partner_school_offer,
+)
 
 
-AUTOMATIC_SCORE_THRESHOLD = 70
+AUTOMATIC_SCORE_THRESHOLD = 75
 AUTHORIZED_CHANNELS = {
     "official_api",
     "recruitment_email",
@@ -62,6 +66,8 @@ def evaluate_automation(
     draft, offer, match = load_context(db, draft_id)
     reasons: list[str] = []
 
+    offer_text = f"{offer.title} {offer.description}"
+
     if match.score < AUTOMATIC_SCORE_THRESHOLD:
         reasons.append(f"Score inférieur à {AUTOMATIC_SCORE_THRESHOLD}/100")
     if not match.role_match:
@@ -72,6 +78,14 @@ def evaluate_automation(
         reasons.append("Contrat non conforme")
     if match.missing_skills:
         reasons.append("Compétences obligatoires manquantes ou non prouvées")
+    if not calculate_experience_match(offer_text):
+        reasons.append(
+            "Expérience demandée supérieure à 2 ans"
+        )
+    if is_partner_school_offer(offer_text):
+        reasons.append(
+            "Offre réservée à une école partenaire spécifique"
+        )
     if has_unknown_questions:
         reasons.append("Le formulaire contient une question inconnue")
     if channel not in AUTHORIZED_CHANNELS or not channel_authorized:

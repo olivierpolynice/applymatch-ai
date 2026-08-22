@@ -27,7 +27,7 @@ const activeOffer: JobOffer = {
   source: "Greenhouse",
   source_url: "https://example.com/offer/1",
   status: "new",
-  published_at: null,
+  published_at: new Date().toISOString(),
   applied_at: null,
   created_at: "2026-08-17T10:00:00Z",
   updated_at: "2026-08-17T10:00:00Z",
@@ -54,8 +54,9 @@ function renderPanel() {
     <QueryClientProvider client={queryClient}>
       <JobOffersPanel
         offers={[activeOffer, appliedOffer]}
-        priorityOffers={[activeOffer]}
         results={[]}
+        drafts={[]}
+        archives={[]}
         profileId={1}
       />
     </QueryClientProvider>,
@@ -91,7 +92,7 @@ describe("JobOffersPanel", () => {
     renderPanel();
 
     await user.click(
-      screen.getByRole("button", { name: "Confirmer ma candidature" }),
+      screen.getByRole("button", { name: "J’ai postulé" }),
     );
 
     await waitFor(() => {

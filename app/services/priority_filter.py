@@ -1,4 +1,5 @@
 import re
+import logging
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,10 @@ from zoneinfo import ZoneInfo
 from dateutil import parser as date_parser
 
 from app.models import JobOffer
+from app.observability import log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 PARIS_TIMEZONE = ZoneInfo("Europe/Paris")
@@ -178,10 +183,22 @@ def evaluate_priority_offer(
     ):
         reasons.append("experience_superieure_a_2_ans")
 
-    return PriorityFilterResult(
+    result = PriorityFilterResult(
         eligible=not reasons,
         reasons=tuple(reasons),
         age_hours=age_hours,
         experience_min=experience_min,
         experience_max=experience_max,
     )
+    log_event(
+        logger,
+        "offer_filter_evaluated",
+        offer_id=offer.id,
+        source=offer.source,
+        eligible=result.eligible,
+        reasons=list(result.reasons),
+        age_hours=result.age_hours,
+        experience_min=result.experience_min,
+        experience_max=result.experience_max,
+    )
+    return result

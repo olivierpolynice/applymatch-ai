@@ -185,7 +185,7 @@ location:
   mobility: "Île-de-France"
 
 availability:
-  contract_type: "Alternance ou stage"
+  contract_type: "Alternance, Stage"
   start_date: "2026-09"
   work_study_schedule: "4 jours en entreprise"
   status: "Disponible"

@@ -38,6 +38,7 @@ backups/
 uploads/
 data/
 generated_documents/
+secrets/
 *.pdf
 # Local databases
 *.db

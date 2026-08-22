@@ -26,7 +26,7 @@ def test_yaml_profile_is_valid() -> None:
     )
     assert (
         document.availability.contract_type
-        == "Alternance ou stage"
+        == "Alternance, Stage"
     )
     assert (
         document.preferences

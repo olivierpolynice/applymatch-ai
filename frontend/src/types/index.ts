@@ -22,7 +22,22 @@ export type JobOfferStatus =
   | "saved"
   | "applied"
   | "rejected"
+  | "expired"
   | "archived";
+
+export type ApplyMatchStatus =
+  | "new"
+  | "eligible"
+  | "low_score"
+  | "manual_review"
+  | "documents_ready"
+  | "sending"
+  | "applied"
+  | "rejected"
+  | "expired"
+  | "failed";
+
+export type ApplicationStatus = ApplyMatchStatus | "not_started" | "sent" | "manual_required";
 
 export interface JobOffer {
   id: number;
@@ -40,7 +55,7 @@ export interface JobOffer {
   experience_min?: number | null;
   experience_max?: number | null;
   application_channel?: string | null;
-  application_status?: string;
+  application_status?: ApplicationStatus;
   provider_confirmation_id?: string | null;
   applied_at: string | null;
   created_at: string;
@@ -231,7 +246,19 @@ export type NotificationType =
   | "high_score"
   | "validation_required"
   | "draft_ready"
-  | "system_error";
+  | "system_error"
+  | "daily_report";
+
+export interface GmailDelivery {
+  id: number;
+  draft_id: number;
+  recipient: string;
+  gmail_draft_id: string;
+  gmail_message_id: string | null;
+  status: "draft_created" | "sent";
+  created_at: string;
+  sent_at: string | null;
+}
 
 export type NotificationLevel =
   | "info"

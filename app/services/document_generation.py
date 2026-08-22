@@ -1,4 +1,5 @@
 import html
+import logging
 import os
 import re
 from pathlib import Path
@@ -16,6 +17,10 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from app.models import ApplicationDraft, CandidateProfile, JobOffer, MatchResult
 from app.services.application_drafts import verified_skills_for_draft
 from app.services.technology_matcher import normalize
+from app.observability import log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -257,7 +262,7 @@ def generate_application_documents(
         match_result=match_result,
     )
 
-    return GeneratedApplicationDocuments(
+    result = GeneratedApplicationDocuments(
         draft_id=draft.id,
         version=draft.version,
         cover_letter_docx=letter_docx.name,
@@ -265,3 +270,13 @@ def generate_application_documents(
         adapted_cv_pdf=cv_pdf.name,
         validation=validation,
     )
+    log_event(
+        logger,
+        "application_documents_generated",
+        draft_id=draft.id,
+        offer_id=offer.id,
+        version=draft.version,
+        valid=validation.valid,
+        validation_errors=validation.errors,
+    )
+    return result

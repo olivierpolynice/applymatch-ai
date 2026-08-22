@@ -12,6 +12,11 @@ from app.services.collector_scheduler import (
     stop_collector_scheduler,
 )
 from app.services.profile_loader import sync_profile
+from app.observability import configure_logging, configure_sentry
+
+
+configure_logging()
+configure_sentry()
 
 
 DEFAULT_CORS_ORIGINS = (

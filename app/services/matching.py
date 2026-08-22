@@ -1,4 +1,5 @@
 import re
+import logging
 import unicodedata
 from datetime import datetime, timezone
 from typing import Any
@@ -9,6 +10,10 @@ from app.services.scoring_engine import explain_score
 from app.services.technology_matcher import (
     analyze_technologies,
 )
+from app.observability import log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 SKILLS: dict[str, tuple[str, ...]] = {
@@ -473,6 +478,30 @@ def calculate_experience_match(offer_text: str) -> bool:
     return not years or min(years) <= 2
 
 
+PARTNER_SCHOOL_MARKERS = (
+    "reserve aux etudiants de",
+    "reservee aux etudiants de",
+    "reserve aux etudiants inscrits",
+    "en partenariat avec l ecole",
+    "en partenariat avec notre ecole",
+    "etudiants inscrits a l ecole",
+    "dans le cadre d un partenariat avec l ecole",
+    "uniquement pour les etudiants de l ecole",
+    "ecole partenaire obligatoire",
+    "cette offre est reservee aux eleves de",
+)
+
+
+def is_partner_school_offer(offer_text: str) -> bool:
+    normalized_offer = normalize(offer_text).replace(
+        "'", " "
+    ).replace("’", " ")
+    return any(
+        marker in normalized_offer
+        for marker in PARTNER_SCHOOL_MARKERS
+    )
+
+
 def calculate_freshness_score(offer: JobOffer) -> int:
     if offer.published_at is None:
         return 0
@@ -842,6 +871,10 @@ def calculate(
         eligibility_reasons.append(
             "expérience demandée supérieure à 2 ans"
         )
+    if is_partner_school_offer(offer_text):
+        eligibility_reasons.append(
+            "offre réservée à une école partenaire spécifique"
+        )
     if (
         not role_match
         and not matched_skills
@@ -920,7 +953,7 @@ def calculate(
         eligibility_reasons=eligibility_reasons,
     )
 
-    return {
+    result = {
         "score": score,
         "recommendation": recommendation,
         "confidence": confidence,
@@ -958,3 +991,20 @@ def calculate(
         "experience_match": experience_match,
         "eligibility_reasons": eligibility_reasons,
     }
+    log_event(
+        logger,
+        "offer_score_calculated",
+        offer_id=offer.id,
+        profile_id=profile.id,
+        total_score=score,
+        decision=explanation.decision,
+        skills_score=skills_score,
+        role_score=role_score,
+        contract_score=contract_score,
+        experience_score=experience_score,
+        location_score=location_score,
+        education_score=education_score,
+        freshness_score=freshness_score,
+        blocking_reasons=eligibility_reasons,
+    )
+    return result

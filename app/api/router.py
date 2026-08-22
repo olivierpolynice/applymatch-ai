@@ -4,9 +4,12 @@ from app.api.routes import (
     application_drafts,
     application_automation,
     auth,
+    browser_assistance,
+    background_tasks,
     candidate_profiles,
     collectors,
     health,
+    gmail,
     job_offers,
     matching,
     notifications,
@@ -32,6 +35,9 @@ api_router.include_router(
     application_drafts.router
 )
 api_router.include_router(application_automation.router)
+api_router.include_router(gmail.router)
+api_router.include_router(browser_assistance.router)
+api_router.include_router(background_tasks.router)
 api_router.include_router(
     notifications.router
 )

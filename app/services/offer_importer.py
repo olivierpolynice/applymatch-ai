@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 import hashlib
+import logging
 import unicodedata
 
 from sqlalchemy import select
@@ -14,6 +15,10 @@ from app.services.job_offers import (
     create_job_offer,
     normalize_fingerprint_value,
 )
+from app.observability import log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -132,6 +137,12 @@ def import_job_offers(
             or legacy_identity in known_legacy_identities
         ):
             duplicates += 1
+            log_event(
+                logger,
+                "offer_duplicate_skipped",
+                source=offer.source,
+                external_id=offer.external_id,
+            )
             continue
 
         try:
@@ -144,10 +155,20 @@ def import_job_offers(
         except Exception:
             db.rollback()
             errors += 1
+            logger.exception(
+                "offer_import_failed",
+                extra={"event": "offer_import_failed", "source": offer.source},
+            )
         else:
             known_fingerprints.add(fingerprint)
             added_offer_ids.append(
                 created_offer.id,
+            )
+            log_event(
+                logger,
+                "offer_imported",
+                offer_id=created_offer.id,
+                source=created_offer.source,
             )
 
     return ImportResult(

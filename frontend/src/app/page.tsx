@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import ApplicationDraftsPanel from "@/components/ApplicationDraftsPanel";
-import ApplicationHistoryPanel from "@/components/ApplicationHistoryPanel";
 import AuthGuard from "@/components/AuthGuard";
 import CollectorHistoryPanel from "@/components/CollectorHistoryPanel";
 import CollectorPanel from "@/components/CollectorPanel";
@@ -17,7 +16,9 @@ import ValidationQueuePanel from "@/components/ValidationQueuePanel";
 import { apiRequest } from "@/lib/api";
 import type {
   ApplicationArchive,
+  ApplicationDraft,
   CandidateProfile,
+  GmailDelivery,
   JobOffer,
   MatchResult,
 } from "@/types";
@@ -43,14 +44,7 @@ export default function Home() {
     queryKey: ["job-offers"],
     queryFn: () =>
       apiRequest<JobOffer[]>("/job-offers"),
-  });
-
-  const priorityOffersQuery = useQuery({
-    queryKey: ["job-offers", "priority"],
-    queryFn: () =>
-      apiRequest<JobOffer[]>(
-        "/job-offers?priority_only=true",
-      ),
+    refetchInterval: 15_000,
   });
 
   const archivesQuery = useQuery({
@@ -59,6 +53,19 @@ export default function Home() {
       apiRequest<ApplicationArchive[]>(
         "/application-automation/archives",
       ),
+    refetchInterval: 15_000,
+  });
+
+  const draftsQuery = useQuery({
+    queryKey: ["application-drafts"],
+    queryFn: () => apiRequest<ApplicationDraft[]>("/application-drafts"),
+    refetchInterval: 15_000,
+  });
+
+  const gmailDeliveriesQuery = useQuery({
+    queryKey: ["gmail-deliveries"],
+    queryFn: () => apiRequest<GmailDelivery[]>("/gmail/deliveries"),
+    refetchInterval: 15_000,
   });
 
   const resultsQuery = useQuery({
@@ -73,6 +80,7 @@ export default function Home() {
           `?minimum_score=${minimumScore}`,
       ),
     enabled: activeProfile !== undefined,
+    refetchInterval: 15_000,
   });
 
   const offersById = new Map(
@@ -82,28 +90,21 @@ export default function Home() {
     ]),
   );
 
-  const activeOfferIds = new Set(
-    (priorityOffersQuery.data ?? [])
-      .filter(
-        (offer) =>
-          offer.status !== "applied" &&
-          offer.status !== "rejected" &&
-          offer.status !== "archived",
-      )
-      .map((offer) => offer.id),
-  );
-
   const isLoading =
     profilesQuery.isLoading ||
     offersQuery.isLoading ||
-    priorityOffersQuery.isLoading ||
+    draftsQuery.isLoading ||
+    archivesQuery.isLoading ||
+    gmailDeliveriesQuery.isLoading ||
     (activeProfile !== undefined &&
       resultsQuery.isLoading);
 
   const error =
     profilesQuery.error ??
     offersQuery.error ??
-    priorityOffersQuery.error ??
+    draftsQuery.error ??
+    archivesQuery.error ??
+    gmailDeliveriesQuery.error ??
     resultsQuery.error;
 
   return (
@@ -175,7 +176,7 @@ export default function Home() {
               </p>
 
               <p className="mt-2 text-lg font-semibold text-emerald-400">
-                Automatique à partir de 70 si le canal est autorisé
+                Priorité à partir de 60 si le canal est autorisé
               </p>
             </article>
           </section>
@@ -183,21 +184,19 @@ export default function Home() {
           {activeProfile &&
             !offersQuery.isLoading &&
             !offersQuery.error &&
-            !priorityOffersQuery.isLoading &&
-            !priorityOffersQuery.error && (
+            !draftsQuery.isLoading &&
+            !archivesQuery.isLoading && (
               <JobOffersPanel
                 offers={offersQuery.data ?? []}
-                priorityOffers={priorityOffersQuery.data ?? []}
                 results={resultsQuery.data ?? []}
-                profileId={activeProfile.id}
-              />
-            )}
-
-          {!offersQuery.isLoading &&
-            !offersQuery.error && (
-              <ApplicationHistoryPanel
-                offers={offersQuery.data ?? []}
+                drafts={draftsQuery.data ?? []}
                 archives={archivesQuery.data ?? []}
+                profileId={activeProfile.id}
+                refreshErrors={[
+                  draftsQuery.error instanceof Error ? `Documents : ${draftsQuery.error.message}` : "",
+                  archivesQuery.error instanceof Error ? `Archives : ${archivesQuery.error.message}` : "",
+                  gmailDeliveriesQuery.error instanceof Error ? `Envois : ${gmailDeliveriesQuery.error.message}` : "",
+                ].filter(Boolean)}
               />
             )}
 
@@ -243,7 +242,7 @@ export default function Home() {
               >
                 <option value={0}>Tous</option>
                 <option value={50}>50 et plus</option>
-                <option value={70}>70 et plus</option>
+                <option value={60}>60 et plus</option>
                 <option value={85}>85 et plus</option>
               </select>
             </label>
@@ -292,11 +291,7 @@ export default function Home() {
 
           {!isLoading && !error && (
             <section className="grid gap-5">
-              {resultsQuery.data
-                ?.filter((result) =>
-                  activeOfferIds.has(result.offer_id),
-                )
-                .map((result) => (
+              {resultsQuery.data?.map((result) => (
                   <MatchResultCard
                     key={result.id}
                     result={result}

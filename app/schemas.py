@@ -366,6 +366,7 @@ NotificationType = Literal[
     "validation_required",
     "draft_ready",
     "system_error",
+    "daily_report",
 ]
 
 NotificationLevel = Literal[
@@ -538,3 +539,64 @@ class ApplicationArchiveRead(ORMModel):
     proposed_answers_snapshot: list[dict[str, str]]
     sent_at: datetime
     archived_at: datetime
+
+
+class GmailAuthorizationRead(BaseModel):
+    authorization_url: str
+    state: str
+
+
+class GmailAuthorizationCodeCreate(BaseModel):
+    code: str = Field(min_length=5)
+
+
+class GmailConnectionRead(BaseModel):
+    connected: bool
+
+
+class GmailDraftCreate(BaseModel):
+    draft_id: int = Field(gt=0)
+    recipient: str = Field(min_length=3, max_length=320)
+
+
+class GmailDeliveryRead(ORMModel):
+    id: int
+    draft_id: int
+    recipient: str
+    gmail_draft_id: str
+    gmail_message_id: str | None
+    status: Literal["draft_created", "sent"]
+    created_at: datetime
+    sent_at: datetime | None
+
+
+class BrowserAssistanceRead(BaseModel):
+    draft_id: int
+    offer_id: int
+    platform: str
+    source_url: str
+    mode: Literal["human_validation_required"]
+    cover_letter_docx_url: str
+    cover_letter_pdf_url: str
+    adapted_cv_pdf_url: str
+    documents_valid: bool
+    instructions: list[str]
+
+
+class BackgroundTaskRead(BaseModel):
+    task_id: str
+    status: Literal["queued"]
+    task_type: Literal[
+        "collect_offers",
+        "generate_documents",
+        "send_gmail",
+        "daily_report",
+    ]
+
+
+class BackgroundTaskStatusRead(BaseModel):
+    task_id: str
+    status: str
+    ready: bool
+    successful: bool | None
+    result: object | None = None
