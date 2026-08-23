@@ -58,6 +58,55 @@ export default function MatchResultCard({
   const isEligible =
     result.decision !== "rejected";
 
+  const deleteOfferMutation = useMutation({
+    mutationFn: () =>
+      apiRequest<void>(
+        `/job-offers/${result.offer_id}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["job-offers"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["match-results"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["validation-queue"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["application-drafts"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["application-archives"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["notifications"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "notifications-unread-count",
+          ],
+        }),
+      ]);
+    },
+  });
+
+  const handleDeleteOffer = () => {
+    const label =
+      offer?.title ??
+      `l’offre numéro ${result.offer_id}`;
+
+    if (
+      window.confirm(
+        `Supprimer « ${label} » ? Cette offre semble ne pas correspondre à un vrai poste. Cette action est définitive.`,
+      )
+    ) {
+      deleteOfferMutation.mutate();
+    }
+  };
+
   return (
     <article
       id={`match-${result.id}`}
@@ -113,18 +162,40 @@ export default function MatchResultCard({
           </p>
         </div>
 
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-cyan-400 bg-slate-950">
-          <div className="text-center">
-            <p className="text-3xl font-bold">
-              {result.score}
-            </p>
+        <div className="flex shrink-0 flex-col items-center gap-3">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-cyan-400 bg-slate-950">
+            <div className="text-center">
+              <p className="text-3xl font-bold">
+                {result.score}
+              </p>
 
-            <p className="text-xs text-slate-400">
-              sur 100
-            </p>
+              <p className="text-xs text-slate-400">
+                sur 100
+              </p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            disabled={deleteOfferMutation.isPending}
+            onClick={handleDeleteOffer}
+            className="rounded-lg border border-red-900 bg-red-950/40 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:border-red-700 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleteOfferMutation.isPending
+              ? "Suppression..."
+              : "Ce n’est pas un vrai poste — Supprimer"}
+          </button>
         </div>
       </div>
+
+      {deleteOfferMutation.isError && (
+        <p className="mt-4 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
+          Impossible de supprimer cette offre :{" "}
+          {deleteOfferMutation.error instanceof Error
+            ? deleteOfferMutation.error.message
+            : "erreur inconnue"}
+        </p>
+      )}
 
       <section className="mt-6">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-300">

@@ -103,4 +103,24 @@ describe("JobOffersPanel", () => {
     });
     expect(window.confirm).toHaveBeenCalledOnce();
   });
+
+  it("deletes an offer that doesn't look like a real job", async () => {
+    const user = userEvent.setup();
+
+    mocks.apiRequest.mockResolvedValue(undefined);
+
+    renderPanel();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ce n’est pas un vrai poste — Supprimer" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.apiRequest).toHaveBeenCalledWith(
+        "/job-offers/1",
+        { method: "DELETE" },
+      );
+    });
+    expect(window.confirm).toHaveBeenCalledOnce();
+  });
 });

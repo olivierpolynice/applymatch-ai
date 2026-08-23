@@ -78,6 +78,27 @@ export default function JobOffersPanel({
     },
     onError: () => setFeedback(""),
   });
+  const deleteOfferMutation = useMutation({
+    mutationFn: ({ offerId }: OfferAction) => apiRequest<void>(
+      `/job-offers/${offerId}`, { method: "DELETE" },
+    ),
+    onSuccess: async (_, variables) => {
+      setFeedback(`${variables.offerTitle} supprimée.`);
+      await Promise.all([
+        invalidateWorkflow(),
+        queryClient.invalidateQueries({ queryKey: ["validation-queue"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] }),
+      ]);
+    },
+    onError: () => setFeedback(""),
+  });
+
+  const handleDeleteOffer = (offerId: number, offerTitle: string) => {
+    if (window.confirm(`Supprimer « ${offerTitle} » ? Cette offre semble ne pas correspondre à un vrai poste. Cette action est définitive.`)) {
+      deleteOfferMutation.mutate({ offerId, offerTitle });
+    }
+  };
 
   return (
     <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
@@ -141,20 +162,28 @@ export default function JobOffersPanel({
                   {offer.source_url && <a href={offer.source_url} target="_blank" rel="noreferrer"
                     className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold hover:border-cyan-600">Voir l’offre</a>}
                   {status !== "applied" && status !== "failed" && (
-                    <button type="button" disabled={matchingMutation.isPending || markAppliedMutation.isPending}
+                    <button type="button" disabled={matchingMutation.isPending || markAppliedMutation.isPending || deleteOfferMutation.isPending}
                       onClick={() => matchingMutation.mutate({ offerId: offer.id, offerTitle: offer.title })}
                       className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50">
                       {isMatching ? "Analyse..." : matching ? "Réanalyser" : "Analyser"}
                     </button>
                   )}
                   {status !== "applied" && (
-                    <button type="button" disabled={matchingMutation.isPending || markAppliedMutation.isPending}
+                    <button type="button" disabled={matchingMutation.isPending || markAppliedMutation.isPending || deleteOfferMutation.isPending}
                       onClick={() => window.confirm("Confirmer l’envoi réel de cette candidature ?") &&
                         markAppliedMutation.mutate({ offerId: offer.id, offerTitle: offer.title })}
                       className="rounded-lg border border-emerald-700 bg-emerald-950 px-4 py-2 text-sm font-semibold text-emerald-300 disabled:opacity-50">
                       {isApplying ? "Enregistrement..." : "J’ai postulé"}
                     </button>
                   )}
+                  <button type="button"
+                    disabled={matchingMutation.isPending || markAppliedMutation.isPending ||
+                      (deleteOfferMutation.isPending && deleteOfferMutation.variables?.offerId === offer.id)}
+                    onClick={() => handleDeleteOffer(offer.id, offer.title)}
+                    className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2 text-sm font-semibold text-red-300 hover:border-red-700 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-50">
+                    {deleteOfferMutation.isPending && deleteOfferMutation.variables?.offerId === offer.id
+                      ? "Suppression..." : "Ce n’est pas un vrai poste — Supprimer"}
+                  </button>
                 </div>
               </div>
             </article>
@@ -164,6 +193,7 @@ export default function JobOffersPanel({
       {feedback && <p className="mt-5 rounded-lg border border-emerald-800 bg-emerald-950/40 p-4 text-sm text-emerald-300">{feedback}</p>}
       {matchingMutation.error && <ErrorMessage prefix="Échec de l’analyse" error={matchingMutation.error} />}
       {markAppliedMutation.error && <ErrorMessage prefix="Impossible d’enregistrer la candidature" error={markAppliedMutation.error} />}
+      {deleteOfferMutation.error && <ErrorMessage prefix="Impossible de supprimer l’offre" error={deleteOfferMutation.error} />}
     </section>
   );
 }
