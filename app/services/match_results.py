@@ -115,7 +115,67 @@ def save_match_result(
         offer=offer,
     )
 
+    if result.decision == "documents_ready":
+        try:
+            auto_prepare_application(db, match_result=result)
+        except Exception:
+            logger.exception(
+                (
+                    "Automatic document preparation failed for "
+                    "match %s (offer %s)."
+                ),
+                result.id,
+                offer.id,
+            )
+
     return result
+
+
+def auto_prepare_application(
+    db: Session,
+    *,
+    match_result: MatchResult,
+) -> None:
+    """For a high-scoring, unblocked match, automatically move it
+    through the validation queue and generate the CV/cover letter,
+    so the only thing left for the candidate to do is add the
+    recruiter's email and send."""
+    from app.models import ValidationQueueItem
+    from app.services.application_drafts import (
+        create_application_draft,
+    )
+    from app.services.validation_queue import (
+        create_validation_queue_item,
+        decide_validation_queue_item,
+    )
+
+    existing_item = db.scalar(
+        select(ValidationQueueItem).where(
+            ValidationQueueItem.match_result_id
+            == match_result.id
+        )
+    )
+
+    if existing_item is None:
+        item = create_validation_queue_item(
+            db, match_result.id
+        )
+    else:
+        item = existing_item
+
+    if item.status == "pending":
+        item = decide_validation_queue_item(
+            db,
+            item.id,
+            "approved",
+            (
+                "Approuve automatiquement : score eleve, "
+                "aucun critere bloquant detecte."
+            ),
+        )
+
+    if item.status == "approved":
+        create_application_draft(db, item.id)
 
 
 def get_active_profile(

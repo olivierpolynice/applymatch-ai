@@ -138,11 +138,11 @@ def test_collection_creates_match_automatically(
     assert count_rows(
         db_session,
         ValidationQueueItem,
-    ) == 0
+    ) == 1
     assert count_rows(
         db_session,
         ApplicationDraft,
-    ) == 0
+    ) == 1
 
 
 def test_duplicate_collection_does_not_rematch(
