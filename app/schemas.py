@@ -64,6 +64,10 @@ class CandidateProfileCreate(BaseModel):
         default=None,
         max_length=5000,
     )
+    portfolio_url: str | None = Field(
+        default=None,
+        max_length=300,
+    )
 
 
 class CandidateProfileUpdate(BaseModel):
@@ -121,6 +125,10 @@ class CandidateProfileUpdate(BaseModel):
     project_highlights: str | None = Field(
         default=None,
         max_length=5000,
+    )
+    portfolio_url: str | None = Field(
+        default=None,
+        max_length=300,
     )
 
 
