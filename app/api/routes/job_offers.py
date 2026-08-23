@@ -221,6 +221,57 @@ def mark_job_offer_as_applied(
 
 
 @router.delete(
+    "/by-source/{source}",
+    status_code=200,
+)
+def delete_job_offers_by_source(
+    source: str,
+    db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
+) -> dict[str, int]:
+    from app.models import (
+        ApplicationDraft,
+        MatchResult,
+        ValidationQueueItem,
+    )
+
+    offer_ids = list(
+        db.scalars(
+            select(JobOffer.id).where(
+                JobOffer.source == source,
+            )
+        )
+    )
+
+    deleted = 0
+
+    for offer_id in offer_ids:
+        db.query(ApplicationDraft).filter(
+            ApplicationDraft.offer_id == offer_id,
+        ).delete()
+        db.query(ValidationQueueItem).filter(
+            ValidationQueueItem.match_result_id.in_(
+                select(MatchResult.id).where(
+                    MatchResult.offer_id == offer_id,
+                )
+            )
+        ).delete(synchronize_session=False)
+        db.query(MatchResult).filter(
+            MatchResult.offer_id == offer_id,
+        ).delete()
+        db.query(JobOffer).filter(
+            JobOffer.id == offer_id,
+        ).delete()
+        deleted += 1
+
+    db.commit()
+
+    return {"deleted": deleted}
+
+
+@router.delete(
     "/{offer_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
