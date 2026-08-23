@@ -266,3 +266,47 @@ def test_duplicate_offer_without_url_returns_409(
     assert second_response.json() == {
         "detail": "This job offer already exists"
     }
+
+
+def test_delete_job_offers_by_company_is_case_insensitive(
+    authenticated_client: TestClient,
+) -> None:
+    theodo_offer = OFFER_DATA.copy()
+    theodo_offer["company"] = "theodo"
+    theodo_offer["source_url"] = "https://example.com/jobs/theodo-1"
+
+    other_offer = OFFER_DATA.copy()
+    other_offer["company"] = "Akuo"
+    other_offer["source_url"] = "https://example.com/jobs/akuo-2"
+
+    authenticated_client.post("/job-offers", json=theodo_offer)
+    authenticated_client.post("/job-offers", json=other_offer)
+
+    response = authenticated_client.delete(
+        "/job-offers/by-company/THEODO",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 1}
+
+    remaining = authenticated_client.get("/job-offers").json()
+
+    assert len(remaining) == 1
+    assert remaining[0]["company"] == "Akuo"
+
+
+def test_delete_job_offers_by_company_with_no_match(
+    authenticated_client: TestClient,
+) -> None:
+    create_offer(authenticated_client)
+
+    response = authenticated_client.delete(
+        "/job-offers/by-company/entreprise-inconnue",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 0}
+
+    remaining = authenticated_client.get("/job-offers").json()
+
+    assert len(remaining) == 1

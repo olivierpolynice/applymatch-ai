@@ -6,6 +6,8 @@ from app.schemas import JobOfferCreate
 from app.services.collectors.ats_common import (
     clean_html,
     comma_separated_environment,
+    get_blocked_companies,
+    is_blocked_company,
     is_target_offer,
     normalize_description,
 )
@@ -30,9 +32,13 @@ def collect_lever_offers(
     owns_client = client is None
     http_client = client or httpx.Client(timeout=30.0)
     offers: list[JobOfferCreate] = []
+    blocked_companies = get_blocked_companies()
 
     try:
         for site in sites:
+            if is_blocked_company(site, blocked_companies):
+                continue
+
             try:
                 response = http_client.get(
                     LEVER_URL.format(site=site),

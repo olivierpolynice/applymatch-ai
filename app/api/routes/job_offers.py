@@ -272,6 +272,65 @@ def delete_job_offers_by_source(
 
 
 @router.delete(
+    "/by-company/{company}",
+    status_code=200,
+)
+def delete_job_offers_by_company(
+    company: str,
+    db: Session = Depends(get_db),
+    _admin: AdminUser = Depends(
+        get_current_admin,
+    ),
+) -> dict[str, int]:
+    """Supprime toutes les offres d'une entreprise, quelle que soit
+    la source (Lever, Greenhouse, SmartRecruiters, ...).
+
+    Comparaison insensible à la casse : "theodo" supprime aussi bien
+    "Theodo" que "THEODO".
+    """
+    from sqlalchemy import func
+
+    from app.models import (
+        ApplicationDraft,
+        MatchResult,
+        ValidationQueueItem,
+    )
+
+    offer_ids = list(
+        db.scalars(
+            select(JobOffer.id).where(
+                func.lower(JobOffer.company) == company.strip().lower(),
+            )
+        )
+    )
+
+    deleted = 0
+
+    for offer_id in offer_ids:
+        db.query(ApplicationDraft).filter(
+            ApplicationDraft.offer_id == offer_id,
+        ).delete()
+        db.query(ValidationQueueItem).filter(
+            ValidationQueueItem.match_result_id.in_(
+                select(MatchResult.id).where(
+                    MatchResult.offer_id == offer_id,
+                )
+            )
+        ).delete(synchronize_session=False)
+        db.query(MatchResult).filter(
+            MatchResult.offer_id == offer_id,
+        ).delete()
+        db.query(JobOffer).filter(
+            JobOffer.id == offer_id,
+        ).delete()
+        deleted += 1
+
+    db.commit()
+
+    return {"deleted": deleted}
+
+
+@router.delete(
     "/{offer_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )

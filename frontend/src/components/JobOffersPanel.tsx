@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 
 import { apiRequest } from "@/lib/api";
 import { classifyOffers, PIPELINE_SECTIONS, type OfferPipelineSection } from "@/lib/offerPipeline";
@@ -32,6 +33,7 @@ export default function JobOffersPanel({
   const [search, setSearch] = useState("");
   const [feedback, setFeedback] = useState("");
   const [section, setSection] = useState<OfferPipelineSection>("new");
+  const [companyToBlock, setCompanyToBlock] = useState("");
   const resultsByOfferId = useMemo(
     () => new Map(results.map((result) => [result.offer_id, result])), [results],
   );
@@ -100,6 +102,36 @@ export default function JobOffersPanel({
     }
   };
 
+  const deleteCompanyMutation = useMutation({
+    mutationFn: (company: string) => apiRequest<{ deleted: number }>(
+      `/job-offers/by-company/${encodeURIComponent(company)}`, { method: "DELETE" },
+    ),
+    onSuccess: async (result, company) => {
+      setFeedback(
+        result.deleted > 0
+          ? `${result.deleted} offre${result.deleted > 1 ? "s" : ""} de « ${company} » supprimée${result.deleted > 1 ? "s" : ""}.`
+          : `Aucune offre trouvée pour « ${company} ».`,
+      );
+      setCompanyToBlock("");
+      await Promise.all([
+        invalidateWorkflow(),
+        queryClient.invalidateQueries({ queryKey: ["validation-queue"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] }),
+      ]);
+    },
+    onError: () => setFeedback(""),
+  });
+
+  const handleDeleteCompany = (event: FormEvent) => {
+    event.preventDefault();
+    const company = companyToBlock.trim();
+    if (!company) return;
+    if (window.confirm(`Supprimer TOUTES les offres de « ${company} », toutes sources confondues ? Cette action est définitive.\n\nPour empêcher que de nouvelles offres de cette entreprise reviennent, ajoute aussi son nom à la variable COLLECTOR_COMPANY_BLOCKLIST sur Render.`)) {
+      deleteCompanyMutation.mutate(company);
+    }
+  };
+
   return (
     <section className="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -128,6 +160,20 @@ export default function JobOffersPanel({
           </button>
         ))}
       </div>
+
+      <form onSubmit={handleDeleteCompany}
+        className="mt-6 flex flex-col gap-3 rounded-xl border border-red-900 bg-red-950/20 p-4 sm:flex-row sm:items-end sm:justify-between">
+        <label className="grid flex-1 gap-2 text-sm text-red-200">
+          Supprimer une entreprise (toutes sources, offres actuelles)
+          <input type="text" value={companyToBlock} onChange={(event) => setCompanyToBlock(event.target.value)}
+            placeholder="Nom exact de l’entreprise, ex : theodo"
+            className="w-full rounded-lg border border-red-800 bg-slate-950 px-4 py-2 text-slate-100" />
+        </label>
+        <button type="submit" disabled={deleteCompanyMutation.isPending || !companyToBlock.trim()}
+          className="rounded-lg border border-red-800 bg-red-950 px-4 py-2 text-sm font-semibold text-red-200 hover:border-red-600 disabled:cursor-not-allowed disabled:opacity-50">
+          {deleteCompanyMutation.isPending ? "Suppression..." : "Supprimer toutes ses offres"}
+        </button>
+      </form>
 
       {refreshErrors.length > 0 && (
         <div className="mt-5 rounded-xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-300">
@@ -194,6 +240,7 @@ export default function JobOffersPanel({
       {matchingMutation.error && <ErrorMessage prefix="Échec de l’analyse" error={matchingMutation.error} />}
       {markAppliedMutation.error && <ErrorMessage prefix="Impossible d’enregistrer la candidature" error={markAppliedMutation.error} />}
       {deleteOfferMutation.error && <ErrorMessage prefix="Impossible de supprimer l’offre" error={deleteOfferMutation.error} />}
+      {deleteCompanyMutation.error && <ErrorMessage prefix="Impossible de supprimer les offres de cette entreprise" error={deleteCompanyMutation.error} />}
     </section>
   );
 }

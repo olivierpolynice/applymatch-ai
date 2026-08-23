@@ -7,6 +7,8 @@ from app.schemas import JobOfferCreate
 from app.services.collectors.ats_common import (
     clean_html,
     comma_separated_environment,
+    get_blocked_companies,
+    is_blocked_company,
     is_target_offer,
     normalize_description,
     parse_datetime,
@@ -36,9 +38,13 @@ def collect_greenhouse_offers(
     owns_client = client is None
     http_client = client or httpx.Client(timeout=30.0)
     offers: list[JobOfferCreate] = []
+    blocked_companies = get_blocked_companies()
 
     try:
         for board in boards:
+            if is_blocked_company(board, blocked_companies):
+                continue
+
             try:
                 response = http_client.get(
                     GREENHOUSE_URL.format(board=board),

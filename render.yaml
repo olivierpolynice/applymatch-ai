@@ -25,3 +25,5 @@ services:
         value: "false"
       - key: COLLECTOR_RUN_ON_STARTUP
         value: "false"
+      - key: COLLECTOR_COMPANY_BLOCKLIST
+        sync: false
