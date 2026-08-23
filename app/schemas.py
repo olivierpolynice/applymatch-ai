@@ -544,10 +544,12 @@ class ApplicationArchiveRead(ORMModel):
 class GmailAuthorizationRead(BaseModel):
     authorization_url: str
     state: str
+    code_verifier: str
 
 
 class GmailAuthorizationCodeCreate(BaseModel):
     code: str = Field(min_length=5)
+    code_verifier: str = Field(min_length=5)
 
 
 class GmailConnectionRead(BaseModel):

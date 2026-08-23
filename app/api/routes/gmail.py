@@ -41,8 +41,12 @@ def connection_status() -> dict[str, bool]:
 @router.post("/oauth/authorize", response_model=GmailAuthorizationRead)
 def authorize() -> dict[str, str]:
     try:
-        url, state = authorization_url()
-        return {"authorization_url": url, "state": state}
+        url, state, code_verifier = authorization_url()
+        return {
+            "authorization_url": url,
+            "state": state,
+            "code_verifier": code_verifier,
+        }
     except GmailDeliveryError as error:
         raise as_http_error(error) from error
 
@@ -50,7 +54,7 @@ def authorize() -> dict[str, str]:
 @router.post("/oauth/callback", response_model=GmailConnectionRead)
 def oauth_callback(data: GmailAuthorizationCodeCreate) -> dict[str, bool]:
     try:
-        exchange_authorization_code(data.code)
+        exchange_authorization_code(data.code, data.code_verifier)
         return {"connected": True}
     except GmailDeliveryError as error:
         raise as_http_error(error) from error

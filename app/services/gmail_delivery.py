@@ -65,7 +65,7 @@ def redirect_uri() -> str:
     ).strip()
 
 
-def authorization_url() -> tuple[str, str]:
+def authorization_url() -> tuple[str, str, str]:
     from google_auth_oauthlib.flow import Flow
 
     flow = Flow.from_client_config(
@@ -77,16 +77,19 @@ def authorization_url() -> tuple[str, str]:
         include_granted_scopes="true",
         prompt="consent",
     )
-    return url, state
+    return url, state, flow.code_verifier
 
 
-def exchange_authorization_code(code: str) -> None:
+def exchange_authorization_code(
+    code: str, code_verifier: str
+) -> None:
     from google_auth_oauthlib.flow import Flow
 
     flow = Flow.from_client_config(
         client_config(), scopes=GMAIL_SCOPES
     )
     flow.redirect_uri = redirect_uri()
+    flow.code_verifier = code_verifier
     flow.fetch_token(code=code)
     save_token(flow.credentials.to_json())
 
