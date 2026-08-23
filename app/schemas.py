@@ -304,11 +304,7 @@ class ScoreExplanationRead(BaseModel):
     known_skills: list[str]
     unknown_skills: list[str]
     blocking_reasons: list[str]
-    decision: Literal[
-        "rejected",
-        "manual_review",
-        "documents_ready",
-    ]
+    decision: str
 
 
 class MatchResultRead(ORMModel):
