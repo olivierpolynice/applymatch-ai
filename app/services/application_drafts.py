@@ -354,8 +354,14 @@ def build_cover_letter(
         ),
         conclusion=(
             "Je serais heureux d’échanger avec vous afin de vous "
-            "présenter plus précisément ma motivation et mon parcours. "
-            "Je vous prie d’agréer, Madame, Monsieur, l’expression "
+            "présenter plus précisément ma motivation et mon parcours."
+            + (
+                " Vous pouvez également consulter mes projets "
+                f"techniques sur mon portfolio : {profile.portfolio_url}."
+                if profile.portfolio_url
+                else ""
+            )
+            + " Je vous prie d’agréer, Madame, Monsieur, l’expression "
             "de mes salutations distinguées."
         ),
     ).strip()

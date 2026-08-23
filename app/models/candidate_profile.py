@@ -60,6 +60,10 @@ class CandidateProfile(Base):
         Text,
         nullable=True,
     )
+    portfolio_url: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
+    )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
