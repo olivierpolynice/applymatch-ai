@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 import re
@@ -38,23 +39,24 @@ class GmailDeliveryError(RuntimeError):
         self.status_code = status_code
 
 
-def client_secret_path() -> Path:
-    value = os.getenv("GMAIL_CLIENT_SECRET_FILE", "").strip()
-    if not value:
+def client_config() -> dict:
+    client_id = os.getenv("GMAIL_OAUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("GMAIL_OAUTH_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
         raise GmailDeliveryError(
-            "GMAIL_CLIENT_SECRET_FILE is not configured", status_code=503
+            "GMAIL_OAUTH_CLIENT_ID / GMAIL_OAUTH_CLIENT_SECRET "
+            "are not configured",
+            status_code=503,
         )
-    path = Path(value).expanduser().resolve()
-    if not path.is_file():
-        raise GmailDeliveryError(
-            "Google OAuth client secret file was not found", status_code=503
-        )
-    return path
-
-
-def token_path() -> Path:
-    value = os.getenv("GMAIL_TOKEN_FILE", "secrets/gmail-token.json").strip()
-    return Path(value).expanduser().resolve()
+    return {
+        "installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [redirect_uri()],
+        }
+    }
 
 
 def redirect_uri() -> str:
@@ -66,8 +68,8 @@ def redirect_uri() -> str:
 def authorization_url() -> tuple[str, str]:
     from google_auth_oauthlib.flow import Flow
 
-    flow = Flow.from_client_secrets_file(
-        str(client_secret_path()), scopes=GMAIL_SCOPES
+    flow = Flow.from_client_config(
+        client_config(), scopes=GMAIL_SCOPES
     )
     flow.redirect_uri = redirect_uri()
     url, state = flow.authorization_url(
@@ -81,18 +83,53 @@ def authorization_url() -> tuple[str, str]:
 def exchange_authorization_code(code: str) -> None:
     from google_auth_oauthlib.flow import Flow
 
-    flow = Flow.from_client_secrets_file(
-        str(client_secret_path()), scopes=GMAIL_SCOPES
+    flow = Flow.from_client_config(
+        client_config(), scopes=GMAIL_SCOPES
     )
     flow.redirect_uri = redirect_uri()
     flow.fetch_token(code=code)
-    destination = token_path()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(flow.credentials.to_json(), encoding="utf-8")
+    save_token(flow.credentials.to_json())
+
+
+def save_token(token_json: str, db: Session | None = None) -> None:
+    from app.db.session import SessionLocal
+    from app.models import OAuthToken
+
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        record = session.scalar(
+            select(OAuthToken).where(OAuthToken.provider == "gmail")
+        )
+        if record is None:
+            record = OAuthToken(provider="gmail", token_json=token_json)
+            session.add(record)
+        else:
+            record.token_json = token_json
+        session.commit()
+    finally:
+        if owns_session:
+            session.close()
+
+
+def load_token(db: Session | None = None) -> str | None:
+    from app.db.session import SessionLocal
+    from app.models import OAuthToken
+
+    owns_session = db is None
+    session = db or SessionLocal()
+    try:
+        record = session.scalar(
+            select(OAuthToken).where(OAuthToken.provider == "gmail")
+        )
+        return record.token_json if record else None
+    finally:
+        if owns_session:
+            session.close()
 
 
 def is_connected() -> bool:
-    return token_path().is_file()
+    return load_token() is not None
 
 
 def gmail_client() -> Any:
@@ -100,18 +137,18 @@ def gmail_client() -> Any:
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 
-    path = token_path()
-    if not path.is_file():
+    token_json = load_token()
+    if token_json is None:
         raise GmailDeliveryError(
             "Gmail is not connected. Complete Google OAuth first.",
             status_code=409,
         )
-    credentials = Credentials.from_authorized_user_file(
-        str(path), GMAIL_SCOPES
+    credentials = Credentials.from_authorized_user_info(
+        json.loads(token_json), GMAIL_SCOPES
     )
     if credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
-        path.write_text(credentials.to_json(), encoding="utf-8")
+        save_token(credentials.to_json())
     if not credentials.valid:
         raise GmailDeliveryError(
             "Gmail authorization is invalid or expired", status_code=409

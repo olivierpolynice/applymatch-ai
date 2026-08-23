@@ -5,6 +5,7 @@ from app.models.candidate_profile import CandidateProfile
 from app.models.collector_run import CollectorRun
 from app.models.job_offer import JobOffer
 from app.models.gmail_delivery import GmailDelivery
+from app.models.oauth_token import OAuthToken
 from app.models.match_result import MatchResult
 from app.models.notification import Notification
 from app.models.validation_queue_item import (
@@ -20,6 +21,7 @@ __all__ = [
     "CollectorRun",
     "JobOffer",
     "GmailDelivery",
+    "OAuthToken",
     "MatchResult",
     "Notification",
     "ValidationQueueItem",
