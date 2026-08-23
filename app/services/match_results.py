@@ -115,19 +115,6 @@ def save_match_result(
         offer=offer,
     )
 
-    if result.decision == "documents_ready":
-        try:
-            auto_prepare_application(db, match_result=result)
-        except Exception:
-            logger.exception(
-                (
-                    "Automatic document preparation failed for "
-                    "match %s (offer %s)."
-                ),
-                result.id,
-                offer.id,
-            )
-
     return result
 
 
@@ -246,7 +233,7 @@ def match_new_offers(
             continue
 
         try:
-            save_match_result(
+            result = save_match_result(
                 db,
                 profile=profile,
                 offer=offer,
@@ -265,6 +252,21 @@ def match_new_offers(
             )
         else:
             analyzed += 1
+
+            if result.decision == "documents_ready":
+                try:
+                    auto_prepare_application(
+                        db, match_result=result
+                    )
+                except Exception:
+                    logger.exception(
+                        (
+                            "Automatic document preparation "
+                            "failed for match %s (offer %s)."
+                        ),
+                        result.id,
+                        offer_id,
+                    )
 
     return AutomaticMatchingResult(
         analyzed=analyzed,
