@@ -478,28 +478,10 @@ def calculate_experience_match(offer_text: str) -> bool:
     return not years or min(years) <= 2
 
 
-PARTNER_SCHOOL_MARKERS = (
-    "reserve aux etudiants de",
-    "reservee aux etudiants de",
-    "reserve aux etudiants inscrits",
-    "en partenariat avec l ecole",
-    "en partenariat avec notre ecole",
-    "etudiants inscrits a l ecole",
-    "dans le cadre d un partenariat avec l ecole",
-    "uniquement pour les etudiants de l ecole",
-    "ecole partenaire obligatoire",
-    "cette offre est reservee aux eleves de",
-)
-
-
-def is_partner_school_offer(offer_text: str) -> bool:
-    normalized_offer = normalize(offer_text).replace(
-        "'", " "
-    ).replace("’", " ")
-    return any(
-        marker in normalized_offer
-        for marker in PARTNER_SCHOOL_MARKERS
-    )
+# PARTNER_SCHOOL_MARKERS and is_partner_school_offer now live in
+# priority_filter.py (imported above) so the same rule protects both
+# the browsing list (evaluate_priority_offer) and the score
+# explanation below — a single source of truth instead of two.
 
 
 def calculate_freshness_score(offer: JobOffer) -> int:
@@ -853,6 +835,9 @@ def calculate(
         "experience_superieure_a_2_ans": (
             "expérience demandée supérieure à 2 ans"
         ),
+        "offre_reservee_ecole_partenaire": (
+            "offre réservée à une école partenaire spécifique"
+        ),
     }
     eligibility_reasons.extend(
         priority_reason_messages[reason]
@@ -870,10 +855,6 @@ def calculate(
     if not experience_match:
         eligibility_reasons.append(
             "expérience demandée supérieure à 2 ans"
-        )
-    if is_partner_school_offer(offer_text):
-        eligibility_reasons.append(
-            "offre réservée à une école partenaire spécifique"
         )
     if (
         not role_match

@@ -54,6 +54,29 @@ BEGINNER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+PARTNER_SCHOOL_MARKERS = (
+    "reserve aux etudiants de",
+    "reservee aux etudiants de",
+    "reserve aux etudiants inscrits",
+    "en partenariat avec l ecole",
+    "en partenariat avec notre ecole",
+    "etudiants inscrits a l ecole",
+    "dans le cadre d un partenariat avec l ecole",
+    "uniquement pour les etudiants de l ecole",
+    "ecole partenaire obligatoire",
+    "cette offre est reservee aux eleves de",
+)
+
+
+def is_partner_school_offer(offer_text: str) -> bool:
+    normalized_offer = normalize_text(offer_text).replace(
+        "'", " "
+    ).replace("’", " ")
+    return any(
+        marker in normalized_offer
+        for marker in PARTNER_SCHOOL_MARKERS
+    )
+
 
 @dataclass(frozen=True)
 class PriorityFilterResult:
@@ -166,6 +189,11 @@ def evaluate_priority_offer(
         reasons.append("contrat_interdit")
     elif not ALLOWED_CONTRACT_PATTERN.search(contract_text):
         reasons.append("contrat_non_reconnu")
+
+    if is_partner_school_offer(
+        f"{offer.title} {offer.description}"
+    ):
+        reasons.append("offre_reservee_ecole_partenaire")
 
     experience_min = offer.experience_min
     experience_max = offer.experience_max

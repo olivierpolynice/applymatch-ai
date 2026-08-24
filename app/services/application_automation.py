@@ -11,10 +11,8 @@ from app.models import (
     MatchResult,
 )
 from app.models.application_archive import utc_now
-from app.services.matching import (
-    calculate_experience_match,
-    is_partner_school_offer,
-)
+from app.services.matching import calculate_experience_match
+from app.services.priority_filter import is_partner_school_offer
 
 
 AUTOMATIC_SCORE_THRESHOLD = 75

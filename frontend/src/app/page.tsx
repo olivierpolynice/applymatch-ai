@@ -43,7 +43,14 @@ export default function Home() {
   const offersQuery = useQuery({
     queryKey: ["job-offers"],
     queryFn: () =>
-      apiRequest<JobOffer[]>("/job-offers"),
+      // priority_only=true applique le filtre strict déjà défini côté
+      // serveur : alternance/stage uniquement (jamais CDI/CDD/intérim),
+      // publiée il y a moins de 24h, expérience 0-2 ans, et jamais une
+      // offre réservée à une école partenaire spécifique. Sans ce
+      // paramètre, l'API renvoie tout, non filtré.
+      apiRequest<JobOffer[]>(
+        "/job-offers?priority_only=true",
+      ),
     refetchInterval: 15_000,
   });
 
@@ -291,7 +298,17 @@ export default function Home() {
 
           {!isLoading && !error && (
             <section className="grid gap-5">
-              {resultsQuery.data?.map((result) => (
+              {resultsQuery.data
+                // offersById ne contient que les offres qui ont passé le
+                // filtre strict (priority_only=true) : alternance/stage,
+                // moins de 24h, expérience 0-2 ans, jamais une offre
+                // réservée à une école partenaire. Un résultat dont
+                // l'offre n'y figure plus (CDI, doublon, etc.) est
+                // donc écarté ici aussi, au lieu de rester visible.
+                ?.filter((result) =>
+                  offersById.has(result.offer_id),
+                )
+                .map((result) => (
                   <MatchResultCard
                     key={result.id}
                     result={result}
