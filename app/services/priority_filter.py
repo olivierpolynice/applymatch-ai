@@ -181,8 +181,14 @@ def evaluate_priority_offer(
     ):
         reasons.append("offre_expiree")
 
+    # Les collecteurs (Choisir le Service Public notamment) valident le
+    # mot "alternance"/"apprentissage" sur l'ensemble titre + métier +
+    # spécialisation + compétences + contrat lors de la collecte - ces
+    # champs (hors titre) sont regroupés dans la description de l'offre.
+    # Ne vérifier que titre + type de contrat ici rejetait donc à tort
+    # des offres pourtant bien alternance/stage.
     contract_text = normalize_text(
-        f"{offer.title} {offer.contract_type}"
+        f"{offer.title} {offer.contract_type} {offer.description}"
     )
 
     if REJECTED_CONTRACT_PATTERN.search(contract_text):
@@ -203,8 +209,13 @@ def evaluate_priority_offer(
             f"{offer.title} {offer.description}"
         )
 
+    # Expérience non précisée dans l'offre : on ne rejette plus dans ce
+    # cas. Le contrat est déjà vérifié juste au-dessus (alternance/stage
+    # uniquement), ce qui implique par nature un profil débutant - c'est
+    # d'ailleurs déjà comme ça que calculate_experience_match() dans
+    # matching.py traite ce cas (permissif quand l'info est absente).
     if experience_min is None and experience_max is None:
-        reasons.append("experience_inconnue")
+        pass
     elif (
         (experience_min is not None and experience_min > MAXIMUM_EXPERIENCE_YEARS)
         or (experience_max is not None and experience_max > MAXIMUM_EXPERIENCE_YEARS)

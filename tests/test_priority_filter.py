@@ -131,7 +131,11 @@ def test_more_than_two_years_is_rejected() -> None:
     assert "experience_superieure_a_2_ans" in result.reasons
 
 
-def test_unknown_experience_is_not_prioritized() -> None:
+def test_unknown_experience_is_not_rejected() -> None:
+    # Le contrat est deja alternance/stage (voir offer()), ce qui
+    # implique par nature un profil debutant : une offre qui ne
+    # precise pas explicitement le nombre d'annees d'experience ne
+    # doit donc pas etre ecartee pour autant.
     result = evaluate_priority_offer(
         offer(
             title="Ingénieur cloud",
@@ -140,8 +144,9 @@ def test_unknown_experience_is_not_prioritized() -> None:
         now=NOW,
     )
 
-    assert result.eligible is False
-    assert "experience_inconnue" in result.reasons
+    assert result.eligible is True
+    assert result.experience_min is None
+    assert result.experience_max is None
 
 
 @pytest.mark.parametrize(
