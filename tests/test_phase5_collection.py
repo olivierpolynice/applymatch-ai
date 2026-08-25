@@ -43,7 +43,7 @@ def test_fingerprint_prefers_source_and_external_id() -> None:
         title="Nouveau titre",
         company="Nouvelle entreprise",
         location="Nanterre",
-        source="Adzuna",
+        source="Jooble",
         external_id="FT-123",
     )
 
@@ -57,7 +57,7 @@ def test_fallback_fingerprint_uses_url() -> None:
         "title": "Alternance Cloud",
         "company": "Entreprise Test",
         "location": "Paris",
-        "source": "Adzuna",
+        "source": "Jooble",
     }
 
     first = build_offer_fingerprint(
@@ -82,8 +82,6 @@ def test_environment_example_contains_phase5_variables() -> None:
     for variable in (
         "FRANCE_TRAVAIL_CLIENT_ID=",
         "FRANCE_TRAVAIL_CLIENT_SECRET=",
-        "ADZUNA_APP_ID=",
-        "ADZUNA_APP_KEY=",
         "COLLECTOR_INTERVAL_MINUTES=15",
     ):
         assert variable in content

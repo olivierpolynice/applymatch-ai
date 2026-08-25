@@ -10,9 +10,6 @@ from app.models import CollectorRun
 from app.services.collectors.la_bonne_alternance import (
     collect_lba_offers,
 )
-from app.services.collectors.adzuna import (
-    collect_adzuna_offers,
-)
 from app.services.collectors.france_travail import (
     collect_france_travail_offers,
 )
@@ -54,7 +51,6 @@ CollectorTrigger = Literal[
 CollectorName = Literal[
     "la-bonne-alternance",
     "france-travail",
-    "adzuna",
     "jooble",
     "choisir-service-public",
     "emploi-territorial",
@@ -66,7 +62,6 @@ CollectorName = Literal[
 COLLECTOR_LABELS: dict[CollectorName, str] = {
     "la-bonne-alternance": "La Bonne Alternance",
     "france-travail": "France Travail",
-    "adzuna": "Adzuna",
     "jooble": "Jooble",
     "choisir-service-public": "Choisir le Service Public",
     "emploi-territorial": "Emploi Territorial",
@@ -84,7 +79,6 @@ COLLECTOR_ENVIRONMENT: dict[
         "FRANCE_TRAVAIL_CLIENT_ID",
         "FRANCE_TRAVAIL_CLIENT_SECRET",
     ),
-    "adzuna": ("ADZUNA_APP_ID", "ADZUNA_APP_KEY"),
     "jooble": ("JOOBLE_API_KEY",),
     "choisir-service-public": (),
     "emploi-territorial": ("EMPLOI_TERRITORIAL_RSS_URL",),
@@ -299,8 +293,6 @@ def execute_collector_run(
             offers = collect_lba_offers()
         elif collector == "france-travail":
             offers = collect_france_travail_offers()
-        elif collector == "adzuna":
-            offers = collect_adzuna_offers()
         elif collector == "jooble":
             offers = collect_jooble_offers()
         elif collector == "choisir-service-public":

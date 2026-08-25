@@ -62,8 +62,8 @@ export default function CollectorPanel() {
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
             Recherche sur La Bonne Alternance, France
-            Travail, Adzuna et Jooble. Les doublons sont
-            ignorés et les nouvelles offres sont analysées
+            Travail et Jooble. Les doublons sont ignorés
+            et les nouvelles offres sont analysées
             automatiquement. Aucune candidature n’est
             envoyée.
           </p>
