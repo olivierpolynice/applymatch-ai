@@ -1,8 +1,12 @@
+import logging
 import os
 from datetime import datetime
 from typing import Any
 
 import httpx
+
+
+logger = logging.getLogger(__name__)
 
 from app.schemas import JobOfferCreate
 from app.services.collectors.la_bonne_alternance import (
@@ -105,6 +109,8 @@ class JoobleCollector:
 
     def collect(self) -> list[JobOfferCreate]:
         collected: dict[str, dict[str, Any]] = {}
+        successful_requests = 0
+        failed_requests = 0
 
         for query in SEARCH_QUERIES:
             try:
@@ -118,17 +124,24 @@ class JoobleCollector:
                     headers={"Accept": "application/json"},
                 )
                 response.raise_for_status()
-            except httpx.HTTPError as error:
-                raise CollectorAPIError(
-                    "Jooble API request failed"
-                ) from error
+                jobs = response.json().get("jobs")
 
-            jobs = response.json().get("jobs")
-
-            if not isinstance(jobs, list):
-                raise CollectorAPIError(
-                    "Invalid Jooble response"
+                if not isinstance(jobs, list):
+                    raise CollectorAPIError(
+                        "Invalid Jooble response"
+                    )
+            # Une des 3 recherches qui échoue ne doit pas faire perdre
+            # les offres déjà trouvées par les autres.
+            except (httpx.HTTPError, CollectorAPIError):
+                failed_requests += 1
+                logger.warning(
+                    "Jooble : requête échouée (recherche=%r), "
+                    "ignorée.",
+                    query,
                 )
+                continue
+
+            successful_requests += 1
 
             for item in jobs:
                 if isinstance(item, dict):
@@ -138,6 +151,12 @@ class JoobleCollector:
                         or len(collected)
                     )
                     collected[identifier] = item
+
+        if successful_requests == 0 and failed_requests > 0:
+            raise CollectorAPIError(
+                "Jooble : aucune des "
+                f"{failed_requests} requêtes n'a abouti"
+            )
 
         return [
             transform_offer(item)
