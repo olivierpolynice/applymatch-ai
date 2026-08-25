@@ -7,7 +7,6 @@ import ApplicationDraftsPanel from "@/components/ApplicationDraftsPanel";
 import AuthGuard from "@/components/AuthGuard";
 import CollectorHistoryPanel from "@/components/CollectorHistoryPanel";
 import CollectorPanel from "@/components/CollectorPanel";
-import ImportOfferForm from "@/components/ImportOfferForm";
 import JobOffersPanel from "@/components/JobOffersPanel";
 import LogoutButton from "@/components/LogoutButton";
 import MatchResultCard from "@/components/MatchResultCard";
@@ -149,12 +148,6 @@ export default function Home() {
           <CollectorPanel />
 
           <CollectorHistoryPanel />
-
-          {activeProfile && (
-            <ImportOfferForm
-              profileId={activeProfile.id}
-            />
-          )}
 
           <section className="mb-8 grid gap-4 sm:grid-cols-3">
             <article className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
