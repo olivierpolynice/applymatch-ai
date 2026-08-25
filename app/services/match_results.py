@@ -101,13 +101,22 @@ def save_match_result(
     db.commit()
     db.refresh(result)
 
-    if result.decision == "rejected" and offer.status not in {
-        "applied",
-        "archived",
-    }:
-        offer.status = "rejected"
-        db.commit()
-        db.refresh(offer)
+    # Important : on ne touche plus a offer.status ici. offer.status
+    # represente le cycle de vie reel de l'offre pour le candidat
+    # (new / applied / archived, ou "rejected" quand LUI l'ecarte) - pas
+    # le resultat de l'algorithme de matching pour CE profil. Le
+    # verdict de calculate() (score trop bas, hors Ile-de-France, aucun
+    # domaine cible, etc.) est deja stocke sur result.decision, la ou
+    # validation_queue.py va le lire.
+    #
+    # Avant, une offre alternance/stage bien fraiche mais qui matchait
+    # mal (ex: mission hors des domaines cibles) se voyait affecter
+    # offer.status = "rejected" ici - et evaluate_priority_offer()
+    # (priority_filter.py) exclut justement toute offre dont le status
+    # est "rejected" ("offre_inactive"). Resultat : l'offre disparaissait
+    # completement du panneau de navigation ("Parcours de candidature"),
+    # alors qu'elle restait une alternance/stage valide de moins de 24h
+    # que le candidat aurait pu vouloir consulter lui-meme.
 
     create_high_score_notification(
         db,
