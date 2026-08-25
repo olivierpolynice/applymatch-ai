@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import ApplicationArchive, ApplicationDraft, JobOffer
+from app.models import ApplicationArchive, ApplicationDraft, JobOffer, MatchResult
 from app.services.notifications import create_notification_once
 
 
@@ -17,9 +17,14 @@ def build_daily_report(
     collected = db.scalar(
         select(func.count()).select_from(JobOffer).where(JobOffer.created_at >= since)
     ) or 0
+    # Le rejet est desormais uniquement un verdict de matching
+    # (MatchResult.decision), plus un statut ecrit sur l'offre elle-meme
+    # (voir match_results.save_match_result) : une offre mal matchee au
+    # profil reste sinon visible/navigable, elle n'est simplement pas
+    # recommandee pour une candidature automatique.
     rejected = db.scalar(
-        select(func.count()).select_from(JobOffer).where(
-            JobOffer.updated_at >= since, JobOffer.status == "rejected"
+        select(func.count()).select_from(MatchResult).where(
+            MatchResult.updated_at >= since, MatchResult.decision == "rejected"
         )
     ) or 0
     prepared = db.scalar(
