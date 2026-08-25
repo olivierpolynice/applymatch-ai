@@ -145,17 +145,6 @@ def run_france_travail_collector(
 
 
 @router.post(
-    "/adzuna/run",
-    response_model=CollectorRunRead,
-)
-def run_adzuna_collector(
-    db: Session = Depends(get_db),
-    _admin: AdminUser = Depends(get_current_admin),
-) -> CollectorRunRead:
-    return execute_manual_collector(db, "adzuna")
-
-
-@router.post(
     "/jooble/run",
     response_model=CollectorRunRead,
 )

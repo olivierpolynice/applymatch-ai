@@ -21,7 +21,6 @@ OPTIONAL_COLLECTOR_VARIABLES = (
     [
         "/collectors/la-bonne-alternance/run",
         "/collectors/france-travail/run",
-        "/collectors/adzuna/run",
         "/collectors/jooble/run",
         "/collectors/choisir-service-public/run",
         "/collectors/emploi-territorial/run",
@@ -92,8 +91,6 @@ def test_run_all_configured_collectors(
         "FRANCE_TRAVAIL_CLIENT_SECRET": (
             "ft-secret"
         ),
-        "ADZUNA_APP_ID": "adzuna-id",
-        "ADZUNA_APP_KEY": "adzuna-key",
         "JOOBLE_API_KEY": "jooble-key",
     }
 
@@ -125,16 +122,6 @@ def test_run_all_configured_collectors(
     )
     monkeypatch.setattr(
         collector_runs,
-        "collect_adzuna_offers",
-        lambda: [
-            build_offer(
-                "Adzuna",
-                "adzuna",
-            )
-        ],
-    )
-    monkeypatch.setattr(
-        collector_runs,
         "collect_jooble_offers",
         lambda: [
             build_offer(
@@ -150,8 +137,8 @@ def test_run_all_configured_collectors(
 
     assert response.status_code == 200
     assert response.json() == {
-        "found": 4,
-        "added": 4,
+        "found": 3,
+        "added": 3,
         "duplicates": 0,
         "errors": 0,
     }
@@ -162,9 +149,9 @@ def test_run_all_configured_collectors(
         )
     )
 
-    # Quatre collecteurs configurés, plus le collecteur
+    # Trois collecteurs configurés, plus le collecteur
     # public Choisir le Service Public.
-    assert run_count == 5
+    assert run_count == 4
 
 
 def test_run_all_skips_unconfigured_collectors(
@@ -176,8 +163,6 @@ def test_run_all_skips_unconfigured_collectors(
         "LBA_API_KEY",
         "FRANCE_TRAVAIL_CLIENT_ID",
         "FRANCE_TRAVAIL_CLIENT_SECRET",
-        "ADZUNA_APP_ID",
-        "ADZUNA_APP_KEY",
         "JOOBLE_API_KEY",
         *OPTIONAL_COLLECTOR_VARIABLES,
     ):

@@ -1,9 +1,6 @@
 import httpx
 import pytest
 
-from app.services.collectors.adzuna import (
-    AdzunaCollector,
-)
 from app.services.collectors.france_travail import (
     FranceTravailCollector,
 )
@@ -78,52 +75,6 @@ def test_france_travail_collects_relevant_offer() -> None:
     }
 
 
-def test_adzuna_collects_and_deduplicates() -> None:
-    def handler(_: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "results": [
-                    {
-                        "id": "adzuna-1",
-                        "title": "Alternance DevSecOps cloud",
-                        "description": (
-                            "Alternance en sécurité cloud "
-                            "avec Docker et réseau."
-                        ),
-                        "company": {
-                            "display_name": "Entreprise Adzuna"
-                        },
-                        "location": {
-                            "display_name": "Paris"
-                        },
-                        "contract_type": "apprentissage",
-                        "redirect_url": (
-                            "https://example.com/adzuna/1"
-                        ),
-                        "created": "2026-08-16T08:00:00Z",
-                    }
-                ]
-            },
-        )
-
-    client = httpx.Client(
-        transport=httpx.MockTransport(handler),
-    )
-    collector = AdzunaCollector(
-        app_id="app-id",
-        app_key="app-key",
-        client=client,
-    )
-
-    offers = collector.collect()
-
-    assert len(offers) == 1
-    assert offers[0].source == "Adzuna"
-    assert offers[0].external_id == "adzuna-1"
-    assert offers[0].application_channel == "official_api"
-
-
 def test_jooble_collects_and_deduplicates() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -165,7 +116,6 @@ def test_jooble_collects_and_deduplicates() -> None:
     "collector_factory",
     [
         lambda: FranceTravailCollector(),
-        lambda: AdzunaCollector(),
         lambda: JoobleCollector(),
     ],
 )
@@ -176,8 +126,6 @@ def test_external_collector_requires_credentials(
     for variable in (
         "FRANCE_TRAVAIL_CLIENT_ID",
         "FRANCE_TRAVAIL_CLIENT_SECRET",
-        "ADZUNA_APP_ID",
-        "ADZUNA_APP_KEY",
         "JOOBLE_API_KEY",
     ):
         monkeypatch.delenv(variable, raising=False)
