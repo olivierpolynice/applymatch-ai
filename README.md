@@ -1,78 +1,159 @@
-ApplyMatch AI
+# ApplyMatch AI
 
-Assistant intelligent d'analyse, de classement et de préparation des candidatures.
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Celery](https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
-Objectif
+Assistant qui collecte des offres d'alternance en cybersécurité, cloud,
+réseaux, SOC et DevSecOps, les note par rapport à un profil, et prépare les
+candidatures — sans jamais en envoyer une sans validation humaine.
 
-ApplyMatch AI aide à évaluer des offres d'alternance en cybersécurité, cloud, réseaux, SOC et DevSecOps. L'application centralisera un profil et des offres, expliquera leur compatibilité et préparera des candidatures honnêtes. Toute candidature restera soumise à une validation humaine.
+## Le principe
 
-Statut
+```
+Collecte automatique  →  Score explicable  →  File de validation  →  Documents générés  →  Brouillon Gmail
+   (8 sources)             (règles /100)        (l'utilisateur          (CV adapté +          (prêt à relire et
+                                                   décide)                 lettre en PDF)         envoyer soi-même)
+```
 
-Le projet est en phase P0 — cadrage et initialisation. Aucune fonctionnalité d'analyse par IA n'est encore annoncée comme disponible.
+Aucune étape ne saute la validation humaine : le score sert à trier et
+prioriser, jamais à décider seul, et même la dernière étape s'arrête à un
+**brouillon** Gmail — l'envoi reste un clic humain, jamais automatique.
 
-La première version fonctionnelle sera locale et mono-utilisateur. Elle permettra d'enregistrer un profil et d'ajouter, consulter, modifier, filtrer et supprimer des offres saisies manuellement.
+## Fonctionnalités
 
-Périmètre V1
+- **Collecte multi-sources** : France Travail, La Bonne Alternance, Choisir
+  le service public, Emploi Territorial, et les pages carrières Greenhouse,
+  Lever, SmartRecruiters et Jooble — uniquement des API publiques, aucun
+  scraping non autorisé.
+- **Score de compatibilité explicable**, fondé sur des règles vérifiables
+  plutôt qu'une boîte noire (détail ci-dessous).
+- **File de validation manuelle** pour les offres ambiguës ou au score
+  intermédiaire.
+- **Génération de brouillons de candidature** (lettre de motivation en PDF/
+  DOCX) à partir du profil et de l'offre.
+- **Brouillon Gmail prêt à envoyer** (CV adapté + lettre de motivation en
+  pièces jointes) une fois la candidature validée — jamais d'envoi
+  automatique, l'utilisateur reste celui qui clique sur "Envoyer".
+- **Notifications** sur les offres à fort score.
+- **Historique des candidatures** et suivi du statut de chaque offre.
+- **Tâches de fond** (Celery + Redis) pour la collecte périodique et les
+  traitements longs, sans bloquer l'API.
 
-profil professionnel et critères de recherche ;
+## Algorithme de matching
 
-compétences et métiers ciblés ;
+Une offre n'est admissible que si elle respecte **tous** ces filtres :
+alternance/apprentissage/stage, Île-de-France ou télétravail complet,
+expérience demandée entre 0 et 2 ans (ou débutant accepté), correspondance
+avec un domaine ciblé ou une technologie prouvée, offre ni archivée ni déjà
+postulée.
 
-ajout manuel d'une offre ;
+Les offres admissibles reçoivent un score sur 100 :
 
-validation et nettoyage des entrées ;
+| Critère | Points |
+|---|---:|
+| Technologies prouvées | 30 |
+| Domaine / métier ciblé | 25 |
+| Alternance ou stage | 15 |
+| Expérience 0–2 ans | 10 |
+| Île-de-France / télétravail compatible | 10 |
+| Profil, études et missions | 5 |
+| Fraîcheur de l'offre | 5 |
 
-liste, filtres et détail des offres ;
+- Filtre obligatoire échoué → `rejected`
+- Score < 70 → `manual_review` (file de validation)
+- Score ≥ 70 → `automatic_ready` (documents préparables automatiquement,
+  envoi toujours soumis à confirmation)
 
-modification, suppression et changement de statut ;
+Détail complet dans [`docs/MATCHING-V2.md`](docs/MATCHING-V2.md).
 
-détection des doublons évidents ;
+## Architecture
 
-tests essentiels.
+| | |
+|---|---|
+| **Backend** | Python, FastAPI, SQLAlchemy 2, Alembic, Celery + Redis (tâches de fond), Playwright (assistance navigateur) |
+| **Frontend** | Next.js, React, TypeScript, TanStack Query, Tailwind CSS |
+| **Base de données** | PostgreSQL |
+| **Authentification** | JWT, mots de passe hashés en Argon2 |
+| **Observabilité** | Sentry |
+| **Tests** | Pytest (backend), Vitest + Testing Library (frontend) |
+| **Déploiement** | API sur Render, base de données sur Neon, frontend sur Vercel |
 
-Le score de compatibilité, l'import du CV, la génération de candidatures, la collecte automatique et les alertes arriveront dans des versions ultérieures.
-
-Architecture prévue
-
-Backend : Python, FastAPI, Pydantic, SQLAlchemy 2 et Alembic
-
-Frontend : React, TypeScript et Vite
-
-Base de données : PostgreSQL avec Docker
-
-Tests : Pytest, Vitest et Testing Library
-
-Architecture : monolithe modulaire avec API HTTP JSON
-
+```
 applymatch-ai/
-├── backend/                # API FastAPI (créée en V1)
-├── frontend/               # application React (créée en V1)
-├── docs/
-│   ├── CAHIER-DES-CHARGES.md
-│   └── BACKLOG-V1.md
-├── .gitignore
-└── README.md
+├── app/
+│   ├── api/routes/       # endpoints (offres, matching, validation, candidatures, gmail...)
+│   ├── services/         # collecteurs, moteur de score, génération de documents, envoi Gmail
+│   ├── background/       # tâches Celery
+│   └── models/           # SQLAlchemy
+├── frontend/              # tableau de bord Next.js
+├── migrations/            # Alembic
+├── docs/                  # cahier des charges, backlog, algorithme de matching
+└── tests/
+```
 
-Principes
+## Principes
 
-fonctionnement réel avant le design final ;
+- Aucune expérience ni compétence inventée dans les documents générés.
+- Aucun scraping non autorisé — uniquement des API publiques.
+- Aucune candidature envoyée sans validation humaine.
+- Score explicable, fondé d'abord sur des règles vérifiables plutôt que sur
+  une IA opaque (la génération de texte par IA est une option désactivable,
+  pas le cœur du scoring).
+- Secrets et données personnelles exclus du dépôt.
 
-score futur explicable, fondé d'abord sur des règles vérifiables ;
+## Lancer le projet en local
 
-aucune expérience ni compétence inventée ;
+**Base de données et Redis :**
 
-aucun scraping non autorisé ;
+```bash
+docker compose -f compose.yaml up -d
+```
 
-aucune candidature envoyée sans validation humaine ;
+**Backend :**
 
-secrets et données personnelles exclus du dépôt.
+```bash
+pip install -r requirements.txt
+cp .env.example .env   # puis renseigner les variables nécessaires
+alembic upgrade head
+uvicorn app.main:app --reload
+```
 
-Documentation
+**Frontend :**
 
-Cahier des charges P0
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Backlog de la V1
+## Lancer les tests
 
-Auteur
+```bash
+# Backend
+pytest
 
-Olivier Polynice — Portfolio · LinkedIn
+# Frontend
+cd frontend && npm test
+```
+
+## Déploiement
+
+API sur Render (voir `render.yaml`), base de données PostgreSQL sur Neon,
+frontend sur Vercel. Étapes détaillées dans
+[`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+## Documentation
+
+- [Cahier des charges](docs/CAHIER-DES-CHARGES.md)
+- [Backlog V1](docs/BACKLOG-V1.md)
+- [Algorithme de matching](docs/MATCHING-V2.md)
+
+## Auteur
+
+Olivier Polynice — Portfolio
