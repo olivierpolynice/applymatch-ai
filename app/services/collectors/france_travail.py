@@ -1,8 +1,12 @@
+import logging
 import os
 from datetime import datetime
 from typing import Any
 
 import httpx
+
+
+logger = logging.getLogger(__name__)
 
 from app.schemas import JobOfferCreate
 from app.services.collectors.la_bonne_alternance import (
@@ -211,6 +215,8 @@ class FranceTravailCollector:
     def collect(self) -> list[JobOfferCreate]:
         token = self.get_access_token()
         collected: dict[str, dict[str, Any]] = {}
+        successful_requests = 0
+        failed_requests = 0
 
         for department in ILE_DE_FRANCE_DEPARTMENTS:
             for query in SEARCH_QUERIES:
@@ -228,17 +234,29 @@ class FranceTravailCollector:
                         },
                     )
                     response.raise_for_status()
-                except httpx.HTTPError as error:
-                    raise CollectorAPIError(
-                        "France Travail API request failed"
-                    ) from error
+                    results = response.json().get("resultats")
 
-                results = response.json().get("resultats")
-
-                if not isinstance(results, list):
-                    raise CollectorAPIError(
-                        "Invalid France Travail response"
+                    if not isinstance(results, list):
+                        raise CollectorAPIError(
+                            "Invalid France Travail response"
+                        )
+                # Une requête individuelle (sur 24 au total : 8
+                # départements x 3 recherches) qui échoue - limite de
+                # débit, coupure réseau ponctuelle - ne doit pas faire
+                # perdre les offres déjà trouvées par les autres. On
+                # journalise et on continue plutôt que de tout annuler.
+                except (httpx.HTTPError, CollectorAPIError):
+                    failed_requests += 1
+                    logger.warning(
+                        "France Travail : requête échouée "
+                        "(departement=%s, recherche=%r), "
+                        "ignorée.",
+                        department,
+                        query,
                     )
+                    continue
+
+                successful_requests += 1
 
                 for item in results:
                     if not isinstance(item, dict):
@@ -249,6 +267,12 @@ class FranceTravailCollector:
                         or len(collected)
                     )
                     collected[identifier] = item
+
+        if successful_requests == 0 and failed_requests > 0:
+            raise CollectorAPIError(
+                "France Travail : aucune des "
+                f"{failed_requests} requêtes n'a abouti"
+            )
 
         return [
             transform_offer(item)

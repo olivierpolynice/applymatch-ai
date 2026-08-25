@@ -1,8 +1,12 @@
+import logging
 import os
 from datetime import datetime
 from typing import Any
 
 import httpx
+
+
+logger = logging.getLogger(__name__)
 
 from app.schemas import JobOfferCreate
 from app.services.collectors.la_bonne_alternance import (
@@ -141,6 +145,8 @@ class AdzunaCollector:
 
     def collect(self) -> list[JobOfferCreate]:
         collected: dict[str, dict[str, Any]] = {}
+        successful_requests = 0
+        failed_requests = 0
 
         for query in SEARCH_QUERIES:
             try:
@@ -157,17 +163,25 @@ class AdzunaCollector:
                     headers={"Accept": "application/json"},
                 )
                 response.raise_for_status()
-            except httpx.HTTPError as error:
-                raise CollectorAPIError(
-                    "Adzuna API request failed"
-                ) from error
+                results = response.json().get("results")
 
-            results = response.json().get("results")
-
-            if not isinstance(results, list):
-                raise CollectorAPIError(
-                    "Invalid Adzuna response"
+                if not isinstance(results, list):
+                    raise CollectorAPIError(
+                        "Invalid Adzuna response"
+                    )
+            # Une des 3 recherches qui échoue (limite de débit, coupure
+            # ponctuelle) ne doit pas faire perdre les offres déjà
+            # trouvées par les autres.
+            except (httpx.HTTPError, CollectorAPIError):
+                failed_requests += 1
+                logger.warning(
+                    "Adzuna : requête échouée (recherche=%r), "
+                    "ignorée.",
+                    query,
                 )
+                continue
+
+            successful_requests += 1
 
             for item in results:
                 if isinstance(item, dict):
@@ -177,6 +191,12 @@ class AdzunaCollector:
                         or len(collected)
                     )
                     collected[identifier] = item
+
+        if successful_requests == 0 and failed_requests > 0:
+            raise CollectorAPIError(
+                "Adzuna : aucune des "
+                f"{failed_requests} requêtes n'a abouti"
+            )
 
         return [
             transform_offer(item)
